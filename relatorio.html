@@ -45,6 +45,17 @@
         .btn-back:hover { text-decoration: underline; }
 
         .error-message { color: red; font-weight: bold; padding: 10px; border: 1px solid red; border-radius: 5px; margin-top: 15px; text-align: center; }
+
+        #filtro-ponto-pessoal { 
+            font-style: italic; 
+            color: #555; 
+            margin-top: 10px; 
+            padding: 10px; 
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fff;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -58,7 +69,8 @@
         </header>
 
         <main>
-            <div class="filter-group">
+            <!-- O filtro de grupo é visível apenas para Admin/Gestor -->
+            <div class="filter-group" id="admin-gestor-filter">
                 <div class="input-group">
                     <label for="filtro-funcionario">Selecionar Funcionário:</label>
                     <select id="filtro-funcionario">
@@ -68,6 +80,11 @@
                 <button onclick="gerarRelatorio()" class="btn-generate-report">
                     <i class="fas fa-search"></i> Gerar Relatório
                 </button>
+            </div>
+            
+            <!-- Mensagem para o funcionário padrão -->
+            <div id="filtro-ponto-pessoal" style="display: none;">
+                Visualizando apenas seus registros de ponto.
             </div>
 
             <div id="loading-status" style="text-align: center; padding: 20px; display: none;">
@@ -98,16 +115,29 @@
         function checkLoginAndPermissions() {
             const userId = localStorage.getItem('usuarioLogadoId');
             const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
-            
-            // Define permissões permitidas para Acessar esta página
-            const allowedPermissions = ['admin', 'gestor'];
+            const filterGroup = document.getElementById('admin-gestor-filter');
+            const pontoPessoalMsg = document.getElementById('filtro-ponto-pessoal');
 
-            // Verifica se está logado E se a permissão está na lista permitida
+            // 1. Verifica se está logado E se tem permissão (Admin, Gestor, ou Funcionario)
+            const allowedPermissions = ['admin', 'gestor', 'funcionario'];
+
             if (!userId || !allowedPermissions.includes(userPermissao)) {
                 window.location.href = 'login.html'; 
                 return;
             }
-            carregarFuncionarios(); // Carrega a lista de funcionários para o filtro
+
+            // 2. Configura a UI baseada na permissão
+            if (userPermissao === 'funcionario') {
+                // Funcionário: Esconde o filtro e carrega APENAS o seu ID
+                filterGroup.style.display = 'none';
+                pontoPessoalMsg.style.display = 'block';
+                gerarRelatorio(userId); // Carrega o relatório imediatamente com o ID dele
+            } else {
+                // Admin/Gestor: Mostra o filtro e carrega a lista de todos
+                filterGroup.style.display = 'flex';
+                pontoPessoalMsg.style.display = 'none';
+                carregarFuncionarios(); 
+            }
         }
         window.onload = checkLoginAndPermissions;
 
@@ -140,8 +170,8 @@
                     selectFuncionario.appendChild(option);
                 });
                 
-                // Dispara o relatório inicial (mostra todos os pontos por padrão)
-                gerarRelatorio(); 
+                // Dispara o relatório inicial (mostra todos os pontos por padrão para Admin/Gestor)
+                gerarRelatorio('todos'); 
                 
             } catch (error) {
                 loadingStatus.style.display = 'none';
@@ -151,13 +181,25 @@
             }
         }
 
-        async function gerarRelatorio() {
-            const funcionarioId = document.getElementById('filtro-funcionario').value;
+        async function gerarRelatorio(forceId = null) {
+            const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
+            const userId = localStorage.getItem('usuarioLogadoId');
+
+            let funcionarioId;
+            
+            if (userPermissao === 'funcionario') {
+                // Se for funcionário, USA APENAS O PRÓPRIO ID
+                funcionarioId = userId;
+            } else {
+                // Admin/Gestor usa o ID selecionado no filtro ou o valor forçado ('todos')
+                funcionarioId = forceId || document.getElementById('filtro-funcionario').value;
+            }
+
             const tabelaBody = document.getElementById('tabela-relatorio-body');
             tabelaBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
 
             try {
-                // Se a opção 'todos' for selecionada, o Back-end retorna todos os pontos (correto para Admin/Gestor)
+                // Usa o ID do funcionário (próprio ou o do filtro)
                 const response = await fetch(`${API_BASE_URL}/api/relatorio/${funcionarioId}`);
                 const registros = await response.json();
 
@@ -167,7 +209,8 @@
                 } else {
                     registros.forEach(registro => {
                         const dataHoraFormatada = new Date(registro.dataHora).toLocaleString('pt-BR');
-                        const nomeFuncionario = registro.funcionario ? registro.funcionario.nome : 'N/A';
+                        // Garante que o nome do funcionário é exibido (o populate do backend cuida disso)
+                        const nomeFuncionario = registro.funcionario ? registro.funcionario.nome : 'N/A'; 
 
                         htmlContent += `
                             <tr>
