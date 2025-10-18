@@ -9,11 +9,12 @@
   "routes": [
     {
       "src": "/",
-      "dest": "/login.html"  // Redirecionamento para a tela de login
+      "dest": "/login.html" 
     },
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.js" // Rota para o seu backend
+      "dest": "/api/index.js"
     }
   ]
 }
+
