@@ -98,10 +98,12 @@
         function checkLoginAndPermissions() {
             const userId = localStorage.getItem('usuarioLogadoId');
             const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
+            
+            // Define permissões permitidas para Acessar esta página
+            const allowedPermissions = ['admin', 'gestor'];
 
-            // Verifica se está logado e se é Admin
-            if (!userId || userPermissao !== 'admin') {
-                // Como não deve ter alert, podemos redirecionar diretamente
+            // Verifica se está logado E se a permissão está na lista permitida
+            if (!userId || !allowedPermissions.includes(userPermissao)) {
                 window.location.href = 'login.html'; 
                 return;
             }
@@ -118,7 +120,7 @@
             errorDiv.style.display = 'none';
 
             try {
-                // *** CHAMA A ROTA CORRETA DO BACK-END ***
+                // CHAMA A ROTA CORRETA DO BACK-END: /api/funcionarios-ponto
                 const response = await fetch(`${API_BASE_URL}/api/funcionarios-ponto`);
                 const funcionarios = await response.json();
                 
@@ -134,10 +136,13 @@
                 funcionarios.forEach(func => {
                     const option = document.createElement('option');
                     option.value = func._id;
-                    // Mostra (Nome - Cargo)
                     option.textContent = `${func.nome} (${func.cargo})`; 
                     selectFuncionario.appendChild(option);
                 });
+                
+                // Dispara o relatório inicial (mostra todos os pontos por padrão)
+                gerarRelatorio(); 
+                
             } catch (error) {
                 loadingStatus.style.display = 'none';
                 errorDiv.textContent = 'Erro de rede: Não foi possível conectar ao servidor para buscar a lista de funcionários.';
@@ -152,7 +157,7 @@
             tabelaBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
 
             try {
-                // Usa o ID do funcionário selecionado (ou 'todos')
+                // Se a opção 'todos' for selecionada, o Back-end retorna todos os pontos (correto para Admin/Gestor)
                 const response = await fetch(`${API_BASE_URL}/api/relatorio/${funcionarioId}`);
                 const registros = await response.json();
 
@@ -162,7 +167,6 @@
                 } else {
                     registros.forEach(registro => {
                         const dataHoraFormatada = new Date(registro.dataHora).toLocaleString('pt-BR');
-                        // O Back-end já faz o populate do 'funcionario'
                         const nomeFuncionario = registro.funcionario ? registro.funcionario.nome : 'N/A';
 
                         htmlContent += `
