@@ -65,6 +65,13 @@
                     <input type="text" id="nome" required>
                 </div>
 
+                <!-- NOVO CAMPO: E-mail (Obrigatório para identificação de ponto) -->
+                <div class="input-group">
+                    <label for="email">E-mail (Identificação de Ponto)</label>
+                    <input type="email" id="email" required>
+                </div>
+                <!-- FIM NOVO CAMPO -->
+
                 <div class="input-group">
                     <label for="cargo">Cargo na Zee</label>
                     <input type="text" id="cargo" required>
@@ -86,7 +93,7 @@
             const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
             // Permite que apenas Admins acessem esta tela
             if (userPermissao !== 'admin') {
-                // Usando window.location para evitar o alert()
+                // Se não for admin, redireciona para o menu.
                 window.location.href = 'menu.html'; 
             }
         }
@@ -105,8 +112,10 @@
 
             const dados = {
                 nome: document.getElementById('nome').value,
+                // INCLUINDO O E-MAIL nos dados de envio
+                email: document.getElementById('email').value, 
                 cargo: document.getElementById('cargo').value
-                // email, senha e isUser=false são omitidos, o backend assume 'ponto'
+                // senha e isUser=false são omitidos, o backend assume 'ponto'
             };
 
             try {
@@ -124,6 +133,7 @@
                     e.target.reset(); 
                 } else {
                     msg.className = 'error';
+                    // Tratamento específico se o e-mail já estiver em uso (isUser=true ou outro ponto)
                     msg.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${data.message || 'Falha ao cadastrar funcionário.'}`;
                 }
 
