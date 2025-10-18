@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zee Imobiliária - Relatório de Contratos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluindo Chart.js para o dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Estilos customizados */
+        :root {
+            --primary-color: #E62B4E; /* Vermelho Zee */
+            --secondary-color: #333;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f0f0;
+        }
+        .header-bg {
+            background-color: var(--primary-color);
+        }
+        .text-primary {
+            color: var(--primary-color);
+        }
+        .bg-primary {
+            background-color: var(--primary-color);
+        }
+        .btn-download {
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .btn-download:hover {
+            background-color: #059669; /* Verde mais escuro */
+            transform: translateY(-1px);
+        }
+        .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .data-table-container {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        /* Fixa o cabeçalho da tabela */
+        .data-table-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table-container th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+    <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden mb-8">
+        <header class="header-bg p-6 text-white text-center rounded-t-xl">
+            <div class="flex items-center justify-center">
+                <i class="fas fa-chart-line text-3xl mr-3"></i>
+                <h1 class="text-3xl font-bold">Relatório e Dashboard de Contratos</h1>
+            </div>
+            <p class="mt-1 opacity-90">Análise de Vendas e Aluguéis Fechados (Restrito a Admin)</p>
+        </header>
+
+        <main class="p-6">
+            <div id="loading-status" class="text-center py-10">
+                <i class="fas fa-spinner fa-spin text-4xl text-primary"></i> 
+                <p class="mt-3 text-lg text-gray-600">Carregando dados e verificando permissão...</p>
+            </div>
+
+            <div id="access-denied" class="hidden text-center text-red-600 py-10">
+                <i class="fas fa-lock text-5xl mb-4"></i>
+                <h2 class="text-2xl font-bold">Acesso Negado</h2>
+                <p class="text-lg">Esta página é restrita apenas a usuários com permissão **Admin**.</p>
+                <a href="menu.html" class="inline-block mt-4 text-primary hover:underline font-semibold"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
+            </div>
+
+            <div id="report-content" class="hidden">
+                <!-- Dashboard Section -->
+                <section class="mb-8 p-4 bg-gray-50 rounded-lg card">
+                    <h2 class="text-2xl font-semibold text-primary border-b pb-2 mb-4">Performance Mensal</h2>
+                    <div class="h-64">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                    <div id="dashboard-summary" class="mt-4 p-3 bg-white rounded-lg border border-gray-200 text-sm font-medium">
+                        <!-- O resumo será preenchido aqui -->
+                        Nenhum dado de contrato para gerar o dashboard.
+                    </div>
+                </section>
+
+                <!-- Contract List Section -->
+                <section>
+                    <h2 class="text-2xl font-semibold text-primary border-b pb-2 mb-4">Detalhes dos Contratos</h2>
+                    
+                    <!-- Filter and Search -->
+                    <div class="flex flex-col sm:flex-row gap-4 mb-6 items-center">
+                        <div class="flex-grow w-full sm:w-auto">
+                            <label for="corretor-filter" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Corretor</label>
+                            <select id="corretor-filter" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary p-2">
+                                <option value="todos">Todos os Corretores</option>
+                            </select>
+                        </div>
+                        <button id="apply-filter" class="w-full sm:w-auto mt-4 sm:mt-0 px-4 py-2 bg-primary text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition duration-150">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                    </div>
+
+                    <!-- Contract Table -->
+                    <div id="contract-list-container" class="data-table-container bg-white rounded-lg shadow-inner border border-gray-200">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endereço</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor (R$)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Corretor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Fech.</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contracts-tbody" class="bg-white divide-y divide-gray-200">
+                                <!-- Contratos serão inseridos aqui -->
+                                <tr>
+                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500" id="no-data-msg">Nenhum contrato encontrado.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Feedback Message -->
+                    <p id="feedback-message" class="mt-4 text-center text-sm text-gray-600"></p>
+                </section>
+                
+                <a href="menu.html" class="block mt-8 text-center text-primary hover:underline font-semibold"><i class="fas fa-arrow-left"></i> Voltar ao Menu Principal</a>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.origin;
+        const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        let chartInstance = null;
+
+        // --- Utils ---
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        function showMessage(text, type = 'info') {
+            const msgElement = document.getElementById('feedback-message');
+            msgElement.classList.remove('text-red-700', 'bg-red-100', 'text-green-700', 'bg-green-100', 'text-blue-700', 'bg-blue-100');
+            
+            if (type === 'error') {
+                msgElement.classList.add('text-red-700', 'bg-red-100');
+            } else if (type === 'success') {
+                msgElement.classList.add('text-green-700', 'bg-green-100');
+            } else {
+                msgElement.classList.add('text-blue-700', 'bg-blue-100');
+            }
+            
+            msgElement.className += ' mt-4 text-center text-sm font-semibold p-2 rounded';
+            msgElement.textContent = text;
+        }
+        
+        // --- Handlers ---
+
+        function handleDownload(arquivoBase64, nomeArquivo) {
+            if (!arquivoBase64) return;
+
+            try {
+                // Remove o prefixo de dados para obter apenas a string Base64 limpa
+                const base64Data = arquivoBase64.split(';base64,')[1];
+                const mime = arquivoBase64.split(';base64,')[0].split(':')[1];
+                
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: mime });
+
+                // Cria o link de download
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = nomeArquivo || 'contrato_anexado.bin';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Limpa o objeto URL e o elemento 'a'
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showMessage(`Download do contrato "${nomeArquivo}" iniciado.`, 'success');
+
+            } catch (error) {
+                console.error('Erro ao gerar download do Base64:', error);
+                showMessage('Falha ao processar o arquivo para download. Tente novamente.', 'error');
+            }
+        }
+
+        // --- Fetchers ---
+
+        async function loadCorretores() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/funcionarios-ponto`);
+                const funcionarios = await response.json();
+                
+                // Filtra apenas usuários com login (funcionários que podem ser corretores)
+                const corretores = funcionarios.filter(f => f.isUser);
+                
+                const select = document.getElementById('corretor-filter');
+                select.innerHTML = '<option value="todos">Todos os Corretores</option>';
+
+                corretores.forEach(func => { 
+                    const option = document.createElement('option');
+                    option.value = func._id;
+                    option.textContent = `${func.nome} (${func.cargo})`;
+                    select.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar corretores:', error);
+            }
+        }
+        
+        async function fetchContracts(corretorId = 'todos') {
+            const tbody = document.getElementById('contracts-tbody');
+            const noDataMsg = document.getElementById('no-data-msg');
+            
+            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/contratos/relatorio/${corretorId}`);
+                const contratos = await response.json();
+
+                tbody.innerHTML = ''; // Limpa o loading
+
+                if (contratos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhum contrato encontrado para o filtro selecionado.</td></tr>';
+                    showMessage('Nenhum contrato encontrado para o filtro selecionado.', 'info');
+                    return;
+                }
+                
+                contratos.forEach(contrato => {
+                    const row = tbody.insertRow();
+                    row.className = 'hover:bg-gray-50';
+                    
+                    row.insertCell().textContent = contrato.tipo;
+                    row.insertCell().textContent = contrato.imovelEndereco;
+                    row.insertCell().textContent = formatCurrency(contrato.valorContrato);
+                    row.insertCell().textContent = `${contrato.corretor.nome} (${contrato.corretor.cargo})`;
+                    row.insertCell().textContent = formatDate(contrato.dataFechamento);
+
+                    const actionCell = row.insertCell();
+                    actionCell.classList.add('px-6', 'py-4', 'whitespace-nowrap', 'text-sm', 'font-medium');
+                    
+                    if (contrato.arquivo && contrato.nomeArquivo) {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn-download px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded-full shadow-md';
+                        btn.innerHTML = `<i class="fas fa-file-download mr-1"></i> Baixar`;
+                        btn.onclick = () => handleDownload(contrato.arquivo, contrato.nomeArquivo);
+                        actionCell.appendChild(btn);
+                    } else {
+                        actionCell.textContent = 'Sem arquivo';
+                        actionCell.classList.add('text-gray-500', 'italic');
+                    }
+                });
+                showMessage(`Foram carregados ${contratos.length} contratos.`, 'success');
+
+            } catch (error) {
+                console.error('Erro ao buscar contratos:', error);
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Falha ao carregar a lista de contratos.</td></tr>';
+                showMessage('Falha ao carregar a lista de contratos.', 'error');
+            }
+        }
+
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/contratos/dashboard`);
+                const data = await response.json();
+                
+                const summary = document.getElementById('dashboard-summary');
+                if (data.length === 0) {
+                    summary.textContent = 'Nenhum dado de contrato para gerar o dashboard.';
+                    return { labels: [], totals: [] };
+                }
+
+                const labels = [];
+                const totalValues = [];
+                let totalGeral = 0;
+                let totalContratosGeral = 0;
+
+                data.forEach(item => {
+                    const monthYear = `${MONTHS[item._id.month - 1]}/${item._id.year}`;
+                    labels.push(monthYear);
+                    totalValues.push(item.totalValor);
+                    totalGeral += item.totalValor;
+                    totalContratosGeral += item.totalContratos;
+                });
+                
+                summary.innerHTML = `
+                    Total Geral: <span class="text-primary font-bold">${formatCurrency(totalGeral)}</span> | 
+                    Total de Contratos: <span class="text-primary font-bold">${totalContratosGeral}</span>
+                `;
+
+                return { labels: labels, totals: totalValues };
+            } catch (error) {
+                console.error('Erro ao buscar dados do dashboard:', error);
+                document.getElementById('dashboard-summary').textContent = 'Falha ao carregar dados do dashboard.';
+                return { labels: [], totals: [] };
+            }
+        }
+
+        // --- Chart Renderer ---
+
+        function renderChart(labels, data) {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            if (chartInstance) {
+                chartInstance.destroy(); 
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Valor Total Fechado (R$)',
+                        data: data,
+                        backgroundColor: 'rgba(230, 43, 78, 0.8)', 
+                        borderColor: 'rgba(230, 43, 78, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Valor Fechado (R$)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += formatCurrency(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // --- Initialization ---
+
+        async function initPage() {
+            const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
+            const loading = document.getElementById('loading-status');
+            const content = document.getElementById('report-content');
+            const denied = document.getElementById('access-denied');
+
+            if (userPermissao !== 'admin') {
+                loading.classList.add('hidden');
+                denied.classList.remove('hidden');
+                return;
+            }
+            
+            // 1. Carrega Corretores
+            await loadCorretores();
+            
+            // 2. Carrega Dados do Dashboard e Renderiza o Gráfico
+            const { labels, totals } = await fetchDashboardData();
+            renderChart(labels, totals);
+            
+            // 3. Configura o Listener do Filtro
+            document.getElementById('apply-filter').addEventListener('click', () => {
+                const corretorId = document.getElementById('corretor-filter').value;
+                fetchContracts(corretorId);
+            });
+            
+            // 4. Carrega todos os contratos por padrão
+            await fetchContracts('todos');
+
+            // 5. Exibe Conteúdo
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
+        }
+
+        window.onload = initPage;
+    </script>
+</body>
+</html>
