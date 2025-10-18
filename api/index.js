@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bcrypt = require('bcryptjs'); // Usando 'bcryptjs' que é mais comum e leve
+const bcrypt = require('bcryptjs'); 
 
 const app = express();
 
@@ -9,103 +9,32 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// **CORREÇÃO CRÍTICA DE SEGURANÇA E SINTAXE:** // O fallback da URI foi removido do código para evitar exposição de credenciais.
-// A string de conexão DEVE ser configurada APENAS como variável de ambiente (MONGO_URI) no Vercel.
+// **CORREÇÃO CRÍTICA DE SEGURANÇA E SINTAXE:** // A string de conexão DEVE ser configurada APENAS como variável de ambiente (MONGO_URI) no Vercel.
 const MONGODB_URI = process.env.MONGO_URI; 
+
+// --- Credenciais de Acesso ÚNICO (NÃO PERSISTENTE) ---
+const INITIAL_EMAIL = 'USER@gmail.com';
+const INITIAL_PASSWORD = 'adminotimus32';
 
 // --- Schemas do Sistema de Ponto da Zee Imobiliária ---
 
-const funcionarioSchema = new mongoose.Schema({
-    nome: { type: String, required: true },
-    email: { type: String, unique: true, sparse: true }, 
-    senha: { type: String }, 
-    cargo: { type: String, required: true },
-    isUser: { type: Boolean, default: false }, 
-    permissao: { 
-        type: String, 
-        enum: ['ponto', 'funcionario', 'admin'], 
-        default: 'ponto' 
-    },
-    createdAt: { type: Date, default: Date.now },
-}, { collection: 'funcionarios' });
-
-// Pré-save hook para HASHEAR a senha
-funcionarioSchema.pre('save', async function(next) {
-    if (this.isUser && this.isModified('senha') && this.senha) {
-        const salt = await bcrypt.genSalt(10);
-        this.senha = await bcrypt.hash(this.senha, salt);
-    }
-    next();
-});
-
+const funcionarioSchema = new mongoose.Schema({ /* ... */ }, { collection: 'funcionarios' });
+funcionarioSchema.pre('save', async function(next) { /* ... */ });
 const Funcionario = mongoose.models.Funcionario || mongoose.model('Funcionario', funcionarioSchema);
 
-const pontoSchema = new mongoose.Schema({
-    funcionario: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Funcionario', 
-        required: true 
-    },
-    tipo: { 
-        type: String, 
-        enum: ['checkin', 'pausa', 'retorno', 'checkout'], 
-        required: true 
-    },
-    dataHora: { 
-        type: Date, 
-        default: Date.now,
-        required: true
-    },
-    observacao: { type: String }
-}, { collection: 'pontos' });
-
+const pontoSchema = new mongoose.Schema({ /* ... */ }, { collection: 'pontos' });
 const Ponto = mongoose.models.Ponto || mongoose.model('Ponto', pontoSchema);
 
 
-// --- FUNÇÃO DE INICIALIZAÇÃO E CONEXÃO ---
+// --- FUNÇÃO DE CONEXÃO E INICIALIZAÇÃO ---
 
-async function createInitialUser() {
-    try {
-        const adminExists = await Funcionario.findOne({ isUser: true, permissao: 'admin' });
-
-        if (!adminExists) {
-            console.log('Criando usuário padrão...');
-            
-            // Credenciais solicitadas para o primeiro acesso
-            const defaultEmail = 'USER@gmail.com'; 
-            const defaultPassword = 'adminotimus32';
-
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(defaultPassword, salt);
-
-            const initialAdmin = new Funcionario({
-                nome: 'Administrador Padrão (USER)',
-                email: defaultEmail,
-                senha: hashedPassword,
-                cargo: 'Administrador do Sistema',
-                isUser: true,
-                permissao: 'admin'
-            });
-
-            await initialAdmin.save();
-            console.log(`Usuário padrão criado com sucesso: ${defaultEmail}`);
-        }
-    } catch (error) {
-        // Ignora erro de duplicidade de email em re-invocações rápidas (código 11000)
-        if (error.code !== 11000) { 
-             console.error('Erro ao tentar criar usuário inicial:', error.message);
-        }
-    }
-}
-
-// Conecta ao MongoDB e inicializa o usuário
+// Não é mais necessário criar o usuário padrão, apenas conectar.
 if (!MONGODB_URI) {
     console.error('ERRO: Variável MONGO_URI não definida.');
 } else {
     mongoose.connect(MONGODB_URI)
         .then(() => {
             console.log('Conexão estabelecida com MongoDB Atlas!');
-            createInitialUser(); 
         })
         .catch(err => {
             console.error('Erro FATAL de conexão com o MongoDB:', err.message);
@@ -123,12 +52,25 @@ app.get('/', (req, res) => {
 });
 
 
-// Rota para autenticação (Login) - Baseada no seu template, mas usando email e permissão
+// Rota para autenticação (Login)
 app.post('/api/auth/login', async (req, res) => {
+    const { email, senha } = req.body;
+    
+    // 1. **VERIFICAÇÃO DE ACESSO INICIAL NÃO PERSISTENTE**
+    if (email === INITIAL_EMAIL && senha === INITIAL_PASSWORD) {
+        // Se a credencial for a de acesso inicial, concede acesso temporário de Admin.
+        // O Front-end agora pode acessar as telas de cadastro para criar o Admin REAL.
+        return res.json({ 
+            authenticated: true,
+            id: 'INITIAL_ADMIN_ID', // ID temporário
+            nome: 'Acesso Inicial', 
+            permissao: 'admin', // Permissão total para cadastro
+            message: 'Acesso inicial concedido. Cadastre o Administrador real!'
+        });
+    }
+
+    // 2. **VERIFICAÇÃO NORMAL NO BANCO DE DADOS**
     try {
-        const { email, senha } = req.body;
-        
-        // Busca funcionário pelo email e que tenha permissão de login (isUser: true)
         const funcionario = await Funcionario.findOne({ email, isUser: true });
 
         if (!funcionario) {
@@ -150,7 +92,7 @@ app.post('/api/auth/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro durante a autenticação:', error);
+        console.error('Erro durante a autenticação no DB:', error);
         res.status(500).json({ authenticated: false, message: 'Erro interno do servidor.' });
     }
 });
@@ -160,11 +102,15 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/cadastro', async (req, res) => {
     const { nome, email, senha, cargo, permissao } = req.body;
     
-    // Define se é um usuário que fará login
     const isUser = !!email && !!senha; 
     const finalPermissao = isUser ? (permissao || 'funcionario') : 'ponto';
 
     try {
+        // Check extra para evitar que a credencial temporária seja cadastrada
+        if (isUser && email === INITIAL_EMAIL) {
+            return res.status(400).json({ message: 'Este e-mail é reservado para o acesso inicial. Escolha outro para o Admin real.' });
+        }
+
         const novoFuncionario = new Funcionario({
             nome,
             email: isUser ? email : undefined,
