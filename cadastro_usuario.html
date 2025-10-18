@@ -60,18 +60,8 @@
         </header>
 
         <main id="main-content">
-            <div id="loading-check" style="text-align: center; padding: 50px;">
-                <i class="fas fa-spinner fa-spin fa-2x" style="color: #E62B4E;"></i> 
-                <p style="margin-top: 15px;">Verificando status do sistema...</p>
-            </div>
-
-            <div id="access-denied" class="hidden" style="text-align: center; padding: 50px; color: #E62B4E;">
-                <h2>Acesso Restrito</h2>
-                <p style="margin-top: 10px;">Esta página é exclusiva para Administradores. Por favor, faça login para continuar.</p>
-                <a href="login.html" class="btn-back"><i class="fas fa-sign-in-alt"></i> Ir para Login</a>
-            </div>
-
-            <form id="form-cadastro-usuario" class="hidden">
+            
+            <form id="form-cadastro-usuario">
                 <div id="admin-warning" class="hidden error" style="margin-bottom: 20px; padding: 10px;">
                     <i class="fas fa-exclamation-triangle"></i> ATENÇÃO: Você está cadastrando o **primeiro** Administrador do sistema. Esta ação é irreversível.
                 </div>
@@ -110,57 +100,62 @@
             </form>
             
             <div id="msg-feedback"></div>
-            <a href="menu.html" class="btn-back hidden" id="back-to-menu"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
+            <a href="login.html" class="btn-back" id="back-to-menu"><i class="fas fa-arrow-left"></i> Ir para Login</a>
         </main>
     </div>
     <script>
         const API_BASE_URL = window.location.origin;
         const form = document.getElementById('form-cadastro-usuario');
-        const denied = document.getElementById('access-denied');
-        const loading = document.getElementById('loading-check');
         const adminWarning = document.getElementById('admin-warning');
-        const backToMenu = document.getElementById('back-to-menu');
         const permissaoGroup = document.getElementById('permissao-group');
+        const backToMenu = document.getElementById('back-to-menu');
+        
+        backToMenu.href = 'login.html'; // Garante que o link de retorno aponte para o login
 
-        async function checkAccess() {
-            // Verifica o localStorage para login ATUAL, mas continua se não estiver logado
-            const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
-
+        // Nova função para verificar APENAS o status inicial do admin e configurar o formulário
+        async function setupForm() {
             try {
-                // 1. Chama a rota de verificação do Back-end para saber se há admins
+                // Tenta chamar a rota de verificação do Back-end.
                 const response = await fetch(`${API_BASE_URL}/api/admin/check-initial`);
-                const data = await response.json();
                 
-                loading.classList.add('hidden');
-
+                // Se o fetch falhar em conectar (erro de rede/CORS), a execução pula para o catch.
+                if (!response.ok) {
+                    throw new Error(`API retornou status: ${response.status}`);
+                }
+                
+                const data = await response.json();
                 const hasAdmin = data.hasAdmin;
 
                 if (!hasAdmin) {
-                    // 2. CASO INICIAL: SEM ADMINS NO BANCO -> PERMITE ACESSO TOTAL
-                    form.classList.remove('hidden');
+                    // CASO: SEM ADMINS NO BANCO -> FORÇA ADMIN e mostra aviso.
                     adminWarning.classList.remove('hidden');
-                    permissaoGroup.classList.add('hidden'); // Oculta, pois será Admin por padrão
-                    backToMenu.classList.remove('hidden');
-                    
-                } else if (hasAdmin && userPermissao === 'admin') {
-                    // 3. CASO NORMAL: LOGADO COMO ADMIN -> PERMITE ACESSO NORMAL
-                    form.classList.remove('hidden');
-                    permissaoGroup.classList.remove('hidden');
-                    backToMenu.classList.remove('hidden');
-
+                    permissaoGroup.classList.add('hidden'); // Oculta a seleção
+                    document.getElementById('permissao').value = 'admin'; 
                 } else {
-                    // 4. BLOQUEIO: JÁ TEM ADMINS E NÃO ESTÁ LOGADO OU NÃO É ADMIN
-                    denied.classList.remove('hidden');
+                    // CASO: JÁ TEM ADMINS -> Modo normal.
+                    adminWarning.classList.add('hidden');
+                    permissaoGroup.classList.remove('hidden');
                 }
 
             } catch (error) {
-                // Se a API falhar (ex: erro de conexão do MongoDB), informa o erro de conexão.
-                denied.classList.remove('hidden');
-                denied.querySelector('p').textContent = 'Erro ao conectar com o servidor para verificar o status inicial. Verifique a conexão do Back-end.';
-                console.error('Falha na verificação de acesso:', error);
+                // Se a API falhar (ex: Servidor fora do ar), o catch é executado.
+                // Aqui, assumimos o modo de PRIMEIRO ADMIN para que o usuário
+                // possa tentar o cadastro, que pode falhar ou não dependendo do erro.
+                console.warn('Falha na comunicação inicial com a API. Assumindo modo de cadastro do PRIMEIRO ADMIN (Necessário para desbloqueio inicial).', error);
+                adminWarning.classList.remove('hidden');
+                permissaoGroup.classList.add('hidden');
+                document.getElementById('permissao').value = 'admin';
+                
+                // Exibe uma mensagem de atenção, mas não bloqueia o formulário.
+                const msg = document.getElementById('msg-feedback');
+                msg.className = 'error';
+                msg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Atenção: A comunicação inicial falhou. Tente cadastrar o usuário. Se falhar, verifique se a API está online.';
+                msg.style.display = 'block';
             }
         }
-        window.onload = checkAccess;
+        
+        // Inicia a configuração do formulário imediatamente, sem o 'loading'
+        window.onload = setupForm;
 
 
         form.addEventListener('submit', async function(e) {
@@ -205,9 +200,11 @@
 
             } catch (error) {
                 msg.className = 'error';
-                msg.innerHTML = '<i class="fas fa-times-circle"></i> Erro de rede. Verifique a conexão com a API.';
+                msg.innerHTML = '<i class="fas fa-times-circle"></i> Erro de rede. Verifique a conexão com a API e tente novamente.';
             } finally {
                 submitBtn.disabled = false;
+                // Executa setupForm novamente para redefinir o estado de "primeiro admin" após o cadastro
+                setupForm(); 
             }
         });
     </script>
