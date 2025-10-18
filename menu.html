@@ -6,45 +6,35 @@
     <title>Zee Imobiliária - Menu</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Estilos base do seu modelo, adaptados para vermelho/branco */
+        /* Manter e adaptar os estilos do seu modelo */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: #F0F0F0; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        body { background: #0d1a2a; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .container { max-width: 1200px; width: 100%; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); overflow: hidden; margin-bottom: 30px; }
-        
-        header { background: #E62B4E; color: white; padding: 20px; text-align: center; } /* Vermelho principal */
+        header { background: #E62B4E; color: white; padding: 20px; text-align: center; }
         .header-content { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-        .logo-header { height: 50px; width: auto; margin-right: 15px; }
+        .logo-header { height: 40px; width: auto; margin-right: 15px; }
         h1 { font-size: 28px; margin-bottom: 5px; }
         .description { font-size: 16px; opacity: 0.9; }
         main { padding: 20px; }
         .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
         .menu-card { 
-            background: #fdfdfd; border: 1px solid #eee; border-radius: 10px; padding: 25px; 
+            background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; padding: 25px; 
             transition: all 0.3s ease; text-decoration: none; color: #333; 
             display: flex; flex-direction: column; justify-content: space-between; align-items: center; 
             text-align: center;
         }
-        .menu-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); border-color: #E62B4E; }
-        .card-icon { font-size: 50px; color: #E62B4E; margin-bottom: 15px; } /* Ícones em vermelho */
+        .menu-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); border-color: #E62B4E; }
+        .card-icon { font-size: 50px; color: #E62B4E; margin-bottom: 15px; }
         .card-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
         .card-description { font-size: 14px; color: #6c757d; }
         
-        .logout { margin-top: 30px; text-align: right; }
-        .btn-logout { background: #333; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; transition: background 0.3s; }
-        .btn-logout:hover { background: #555; }
+        .logout { margin-top: 20px; text-align: right; }
+        .btn-logout { background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; transition: background 0.3s; }
+        .btn-logout:hover { background: #c0392b; }
 
-        .welcome-message {
-            text-align: center;
-            font-size: 1.1em;
-            color: #333;
-            margin-bottom: 25px;
-            font-weight: 500;
-        }
+        .welcome-message { text-align: center; font-size: 1.1em; color: #333; margin-bottom: 25px; font-weight: 500; }
 
-        /* Esconder cards para usuários não-admin */
-        .admin-only {
-            display: none;
-        }
+        .hidden-by-permission { display: none; }
     </style>
 </head>
 <body>
@@ -52,7 +42,7 @@
         <header>
             <div class="header-content">
                 <img src="img/logo.png" alt="Zee Imobiliária Logo" class="logo-header">
-                <h1>Zee Imobiliária - Menu Principal</h1>
+                <h1>Menu Principal</h1>
             </div>
             <p class="description">Bem-vindo(a) ao Sistema de Gestão de Tempo.</p>
         </header>
@@ -62,30 +52,49 @@
 
             <div class="menu-grid">
                 
-                <a href="ponto.html" class="menu-card">
+                <a href="registro_ponto.html" class="menu-card">
                     <div class="card-icon"><i class="fas fa-clock"></i></div>
                     <div>
-                        <h2 class="card-title">Registro de Ponto</h2>
+                        <h2 class="card-title">Meu Registro de Ponto</h2>
                         <p class="card-description">Marque seu Check-in, Pausas e Check-out.</p>
                     </div>
                 </a>
                 
-                <a href="cadastro_funcionario.html" class="menu-card admin-only" id="card-cadastro-funcionario">
-                    <div class="card-icon"><i class="fas fa-user-plus"></i></div>
-                    <div>
-                        <h2 class="card-title">Cadastro de Funcionário</h2>
-                        <p class="card-description">Gerencie os dados dos colaboradores e usuários.</p>
-                    </div>
-                </a>
-
-                <a href="relatorio.html" class="menu-card admin-only" id="card-relatorio-ponto">
+                <!-- Visível para ADMIN e GESTOR -->
+                <a href="relatorio.html" class="menu-card hidden-by-permission" id="card-relatorio-ponto">
                     <div class="card-icon"><i class="fas fa-chart-line"></i></div>
                     <div>
                         <h2 class="card-title">Relatório de Ponto</h2>
-                        <p class="card-description">Visualize e filtre os registros de horas dos funcionários.</p>
+                        <p class="card-description">Visualize e filtre os registros de horas.</p>
                     </div>
                 </a>
                 
+                <!-- Apenas para ADMIN -->
+                <a href="ponto_admin.html" class="menu-card hidden-by-permission" id="card-ponto-admin">
+                    <div class="card-icon"><i class="fas fa-user-shield"></i></div>
+                    <div>
+                        <h2 class="card-title">Registo de Ponto (Admin)</h2>
+                        <p class="card-description">Marque o ponto para outros funcionários.</p>
+                    </div>
+                </a>
+
+                <!-- Apenas para ADMIN -->
+                <a href="cadastro_usuario.html" class="menu-card hidden-by-permission" id="card-cadastro-usuario">
+                    <div class="card-icon"><i class="fas fa-user-plus"></i></div>
+                    <div>
+                        <h2 class="card-title">Gestão de Usuários</h2>
+                        <p class="card-description">Cadastro de usuários (Admin/Gestor/Func.)</p>
+                    </div>
+                </a>
+
+                <!-- Apenas para ADMIN -->
+                <a href="cadastro_funcionario_ponto.html" class="menu-card hidden-by-permission" id="card-cadastro-ponto">
+                    <div class="card-icon"><i class="fas fa-user-tag"></i></div>
+                    <div>
+                        <h2 class="card-title">Cadastro Ponto (Sem Acesso)</h2>
+                        <p class="card-description">Adicionar colaboradores que só batem ponto.</p>
+                    </div>
+                </a>
             </div>
             <div class="logout">
                 <button class="btn-logout" onclick="logout()">Sair <i class="fas fa-sign-out-alt"></i></button>
@@ -105,29 +114,36 @@
 
             document.getElementById('user-name').textContent = userName;
 
-            // Mostrar cards de admin apenas para admins
+            // Por padrão, todos os cartões de permissão (exceto 'Meu Registro de Ponto')
+            // são escondidos no HTML. Vamos mostrá-los com base na permissão.
+            const cardRelatorio = document.getElementById('card-relatorio-ponto');
+            const cardPontoAdmin = document.getElementById('card-ponto-admin');
+            const cardCadastroUsuario = document.getElementById('card-cadastro-usuario');
+            const cardCadastroPonto = document.getElementById('card-cadastro-ponto');
+
+
             if (userPermissao === 'admin') {
-                document.querySelectorAll('.admin-only').forEach(card => {
-                    card.style.display = 'flex'; // Torna visível para admins
-                });
-            } else {
-                // Para não-admins, garante que os cards de admin estão escondidos
-                document.querySelectorAll('.admin-only').forEach(card => {
-                    card.style.display = 'none'; 
-                });
-            }
+                // Admin vê tudo
+                cardRelatorio.classList.remove('hidden-by-permission');
+                cardPontoAdmin.classList.remove('hidden-by-permission');
+                cardCadastroUsuario.classList.remove('hidden-by-permission');
+                cardCadastroPonto.classList.remove('hidden-by-permission');
+                
+            } else if (userPermissao === 'gestor') {
+                 // Gestor vê APENAS o Relatório
+                 cardRelatorio.classList.remove('hidden-by-permission');
+                 
+            } 
+            // Funcionário (permissao === 'funcionario') não precisa de lógica extra, 
+            // pois só vê o card de Registro de Ponto, que é o único que não tem a classe 'hidden-by-permission' por padrão.
         }
 
         function logout() {
-            localStorage.removeItem('usuarioLogadoId');
-            localStorage.removeItem('usuarioLogadoNome');
-            localStorage.removeItem('usuarioLogadoPermissao');
+            localStorage.clear(); // Limpa todas as informações de login
             window.location.href = 'login.html';
         }
         
         window.onload = checkLoginAndPermissions;
     </script>
 </body>
-
 </html>
-
