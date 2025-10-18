@@ -9,7 +9,7 @@
   "routes": [
     {
       "src": "/",
-      "dest": "/login.html"
+      "dest": "/LOGIN.html"
     },
     {
       "src": "/api/(.*)",
@@ -17,3 +17,4 @@
     }
   ]
 }
+
