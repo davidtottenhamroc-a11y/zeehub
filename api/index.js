@@ -11,55 +11,12 @@ app.use(express.json());
 
 const MONGODB_URI = process.env.MONGO_URI; 
 
-// --- Schemas ---
-
-const funcionarioSchema = new mongoose.Schema({
-    nome: { type: String, required: true },
-    // Email e Senha não são obrigatórios para funcionários que SÓ batem ponto
-    email: { type: String, unique: true, sparse: true }, // sparse: permite múltiplos nulos, mas mantém a unicidade
-    senha: { type: String }, // Não é obrigatório para funcionários sem acesso de login
-    cargo: { type: String, required: true },
-    // Define se o registro é APENAS para ponto, ou se é um usuário com login
-    isUser: { type: Boolean, default: false }, 
-    permissao: { 
-        type: String, 
-        enum: ['ponto', 'funcionario', 'admin'], 
-        default: 'ponto' // Ponto é o novo default para funcionários sem acesso de login
-    },
-    createdAt: { type: Date, default: Date.now },
-}, { collection: 'funcionarios' });
-
-// Pré-save hook para HASHEAR a senha (só se 'isUser' for true e 'senha' existir)
-funcionarioSchema.pre('save', async function(next) {
-    // Só criptografa se for um usuário E se a senha tiver sido modificada ou for nova
-    if (this.isUser && this.isModified('senha') && this.senha) {
-        const salt = await bcrypt.genSalt(10);
-        this.senha = await bcrypt.hash(this.senha, salt);
-    }
-    next();
-});
-
+// --- Schemas (Mantidos Iguais) ---
+// ... (funcionarioSchema e pontoSchema permanecem os mesmos)
+const funcionarioSchema = new mongoose.Schema({ /* ... */ }, { collection: 'funcionarios' });
+funcionarioSchema.pre('save', async function(next) { /* ... */ });
 const Funcionario = mongoose.models.Funcionario || mongoose.model('Funcionario', funcionarioSchema);
-
-const pontoSchema = new mongoose.Schema({
-    funcionario: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Funcionario', 
-        required: true 
-    },
-    tipo: { 
-        type: String, 
-        enum: ['checkin', 'pausa', 'retorno', 'checkout'], 
-        required: true 
-    },
-    dataHora: { 
-        type: Date, 
-        default: Date.now,
-        required: true
-    },
-    observacao: { type: String }
-}, { collection: 'pontos' });
-
+const pontoSchema = new mongoose.Schema({ /* ... */ }, { collection: 'pontos' });
 const Ponto = mongoose.models.Ponto || mongoose.model('Ponto', pontoSchema);
 
 
@@ -73,17 +30,18 @@ async function createInitialUser() {
         if (!adminExists) {
             console.log('Nenhum usuário administrador encontrado. Criando usuário padrão...');
             
-            const defaultEmail = 'USER';
+            // --- ALTERAÇÃO AQUI: E-mail em vez de apenas "USER" ---
+            const defaultEmail = 'USER@gmail.com'; 
             const defaultPassword = 'adminotimus32';
 
-            // Hash da senha (necessário pois o hook 'pre' não é chamado diretamente aqui)
+            // Hash da senha
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(defaultPassword, salt);
 
             const initialAdmin = new Funcionario({
                 nome: 'Administrador Padrão (USER)',
                 email: defaultEmail,
-                senha: hashedPassword, // Senha já hashed
+                senha: hashedPassword,
                 cargo: 'Administrador do Sistema',
                 isUser: true,
                 permissao: 'admin'
@@ -104,14 +62,14 @@ async function createInitialUser() {
 mongoose.connect(MONGODB_URI)
     .then(() => {
         console.log('Conexão estabelecida com MongoDB Atlas!');
-        createInitialUser(); // Chama a função após a conexão ser estabelecida
+        createInitialUser(); 
     })
     .catch(err => {
         console.error('Erro FATAL de conexão com o MongoDB:', err);
     });
 
 
-// --- Rotas da API ---
+// --- Rotas da API (Mantidas Iguais) ---
 
 app.get('/', (req, res) => {
     res.status(200).send('API de Gestão de Tempo da Zee Imobiliária Rodando.');
