@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // A Vercel injetará esta variável de ambiente (MONGO_URI)
-const MONGODB_URI = process.env.MONGO_URI || "mongodb+srv://davidtottenhamroc_db_user:david0724@cluster0.q29vt6z.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0"; 
+const MONGODB_URI = process.env.MONGO_URI || "mongodb+srv://davidtottenhamroc_db_user:david0724@cluster0.q29vt6z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; 
 
 // --- Schemas do Sistema de Ponto da Zee Imobiliária ---
 
@@ -235,5 +235,6 @@ app.get('/api/relatorio/:funcionarioId', async (req, res) => {
 // ESTE É O PASSO CHAVE: A Vercel usará este módulo exportado para criar a função Serverless.
 // O BLOCO app.listen() FOI REMOVIDO.
 module.exports = app;
+
 
 
