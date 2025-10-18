@@ -69,8 +69,8 @@
                     </div>
                 </a>
                 
-                <!-- Apenas para ADMIN -->
-                <a href="ponto_admin.html" class="menu-card hidden-by-permission" id="card-ponto-admin">
+                <!-- Visível para ADMIN e GESTOR (CORREÇÃO AQUI) -->
+                <a href="ponto.html" class="menu-card hidden-by-permission" id="card-ponto-admin">
                     <div class="card-icon"><i class="fas fa-user-shield"></i></div>
                     <div>
                         <h2 class="card-title">Registo de Ponto (Admin)</h2>
@@ -91,7 +91,7 @@
                 <a href="cadastro_funcionario.html" class="menu-card hidden-by-permission" id="card-cadastro-ponto">
                     <div class="card-icon"><i class="fas fa-user-tag"></i></div>
                     <div>
-                        <h2 class="card-title">Cadastro Funcionario</h2>
+                        <h2 class="card-title">Cadastro Ponto (Sem Acesso)</h2>
                         <p class="card-description">Adicionar colaboradores que só batem ponto.</p>
                     </div>
                 </a>
@@ -114,33 +114,37 @@
 
             document.getElementById('user-name').textContent = userName;
 
-            // Por padrão, todos os cartões de permissão (exceto 'Meu Registro de Ponto')
-            // são escondidos no HTML. Vamos mostrá-los com base na permissão.
+            // Variáveis de referência para os cartões
             const cardRelatorio = document.getElementById('card-relatorio-ponto');
             const cardPontoAdmin = document.getElementById('card-ponto-admin');
             const cardCadastroUsuario = document.getElementById('card-cadastro-usuario');
             const cardCadastroPonto = document.getElementById('card-cadastro-ponto');
 
+            // --- Lógica de Permissão ---
 
             if (userPermissao === 'admin') {
-                // Admin vê tudo
+                // Admin vê TUDO
                 cardRelatorio.classList.remove('hidden-by-permission');
                 cardPontoAdmin.classList.remove('hidden-by-permission');
                 cardCadastroUsuario.classList.remove('hidden-by-permission');
                 cardCadastroPonto.classList.remove('hidden-by-permission');
                 
             } else if (userPermissao === 'gestor') {
-                 // Gestor vê APENAS o Relatório e o Ponto Pessoal
+                 // Gestor vê: Relatório e Registro de Ponto (Admin)
                  cardRelatorio.classList.remove('hidden-by-permission');
-                 // Garante que o Gestor NÃO veja os cadastros e admin point
-                 cardPontoAdmin.classList.add('hidden-by-permission');
+                 cardPontoAdmin.classList.remove('hidden-by-permission'); // <--- CORREÇÃO AQUI
+                 
+                 // Garante que o gestor NÃO veja as ferramentas de cadastro de usuários
                  cardCadastroUsuario.classList.add('hidden-by-permission');
                  cardCadastroPonto.classList.add('hidden-by-permission');
                  
             } else {
-                // Funcionário e outros (incluindo 'ponto')
+                // Funcionário e outros (permissao 'funcionario' e 'ponto')
                 // Vê APENAS o Meu Registro de Ponto. Garante que o Relatório esteja escondido.
                 cardRelatorio.classList.add('hidden-by-permission');
+                cardPontoAdmin.classList.add('hidden-by-permission');
+                cardCadastroUsuario.classList.add('hidden-by-permission');
+                cardCadastroPonto.classList.add('hidden-by-permission');
             }
         }
 
@@ -153,5 +157,3 @@
     </script>
 </body>
 </html>
-
-
