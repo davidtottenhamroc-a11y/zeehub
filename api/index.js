@@ -263,6 +263,20 @@ app.post('/api/ponto', async (req, res) => {
     }
 });
 
+// --- ROTAS DE CONTRATO ---
+
+// Rota para Cadastrar Novo Contrato
+app.post('/api/contratos', async (req, res) => {
+    // Note: A validação de permissão deve ser feita no Front-end (apenas Admin acessa)
+    try {
+        const novoContrato = new Contrato(req.body);
+        await novoContrato.save();
+        res.status(201).json({ message: 'Contrato cadastrado com sucesso!', contrato: novoContrato });
+    } catch (error) {
+        console.error('Erro ao cadastrar contrato:', error);
+        res.status(400).json({ message: 'Falha ao cadastrar contrato.', details: error.message });
+    }
+});
 
 // Rota para buscar Relatório de Pontos
 app.get('/api/relatorio/:funcionarioId', async (req, res) => {
@@ -283,3 +297,4 @@ app.get('/api/relatorio/:funcionarioId', async (req, res) => {
 
 
 module.exports = app;
+
