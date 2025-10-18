@@ -40,7 +40,7 @@
             text-align: center; display: none;
         }
         .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; } 
-        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; } 
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6fb; } 
         .loading { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; } 
         
         .btn-back { display: block; margin-top: 20px; text-align: center; text-decoration: none; color: #E62B4E; font-weight: bold; }
@@ -54,7 +54,7 @@
                 <img src="img/logo.png" alt="Zee Imobiliária Logo" class="logo-header">
                 <h1>Cadastro de Funcionário (Apenas Ponto)</h1>
             </div>
-            <p class="description">Adicione novos colaboradores que apenas registrarão o ponto.</p>
+            <p class="description">Adicione novos colaboradores que apenas registrarão o ponto (sem acesso ao sistema).</p>
         </header>
 
         <main>
@@ -84,9 +84,10 @@
 
         function checkAdminPermission() {
             const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
+            // Permite que apenas Admins acessem esta tela
             if (userPermissao !== 'admin') {
-                alert('Você não tem permissão para acessar esta página.');
-                window.location.href = 'menu.html';
+                // Usando window.location para evitar o alert()
+                window.location.href = 'menu.html'; 
             }
         }
         window.onload = checkAdminPermission;
@@ -105,7 +106,7 @@
             const dados = {
                 nome: document.getElementById('nome').value,
                 cargo: document.getElementById('cargo').value
-                // Sem email, sem senha, isUser será false no backend
+                // email, senha e isUser=false são omitidos, o backend assume 'ponto'
             };
 
             try {
