@@ -3,181 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zee Imobiliária - Registro de Ponto</title>
+    <title>Registro de Ponto Administrativo</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Estilos base */
+        /* Estilos base (vermelho/branco) */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: #F0F0F0; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { max-width: 800px; width: 100%; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); overflow: hidden; margin-bottom: 30px; }
+        .container { max-width: 600px; width: 100%; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); overflow: hidden; margin-bottom: 30px; }
         
         header { background: #E62B4E; color: white; padding: 20px; text-align: center; }
         .header-content { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
         .logo-header { height: 40px; width: auto; margin-right: 15px; }
-        h1 { font-size: 28px; margin-bottom: 5px; }
-        .description { font-size: 16px; opacity: 0.9; }
-        main { padding: 40px 20px; text-align: center; }
-        
-        /* Estilos do Ponto */
-        #nome-funcionario { font-size: 1.2em; margin-bottom: 25px; color: #333; font-weight: bold;}
+        h1 { font-size: 24px; margin-bottom: 5px; }
+        .description { font-size: 14px; opacity: 0.9; }
+        main { padding: 30px 20px; }
 
-        #status-ponto { font-size: 24px; font-weight: bold; margin-bottom: 30px; padding: 15px; border-radius: 10px; }
-        .status-trabalhando { background-color: #2ecc71; color: white; } /* Verde */
-        .status-pausa { background-color: #f1c40f; color: #333; } /* Amarelo */
-        .status-fora { background-color: #E62B4E; color: white; } /* Vermelho */
-
-        .btn-ponto-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-        .btn-ponto { 
-            padding: 15px 30px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; 
-            transition: transform 0.2s, opacity 0.2s; min-width: 180px;
-            display: flex; align-items: center; justify-content: center;
+        /* Estilos do Formulário */
+        form { background: #fdfdfd; padding: 30px; border-radius: 10px; border: 1px solid #eee; }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+        .input-group select, .input-group textarea { 
+            width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; 
+            transition: border-color 0.3s; font-size: 16px;
         }
-        .btn-ponto:hover { transform: translateY(-3px); }
-        .btn-ponto i { margin-right: 10px; }
-
-        .btn-checkin { background: #E62B4E; color: white; } /* Vermelho principal */
-        .btn-pausa { background: #F39C12; color: white; } /* Laranja */
-        .btn-retorno { background: #27AE60; color: white; } /* Verde escuro */
-        .btn-checkout { background: #333; color: white; } /* Cinza escuro */
+        .input-group select:focus, .input-group textarea:focus { border-color: #E62B4E; outline: none; box-shadow: 0 0 5px rgba(230, 43, 78, 0.5); }
         
+        .btn-submit { 
+            width: 100%; padding: 15px; background: #E62B4E; color: white; border: none; 
+            border-radius: 8px; font-size: 18px; cursor: pointer; transition: background 0.3s; 
+        }
+        .btn-submit:hover { background: #CC2545; }
+
+        /* Mensagens de feedback e status */
+        #msg-feedback { 
+            margin-top: 20px; padding: 15px; border-radius: 5px; font-weight: bold; 
+            text-align: center; display: none;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; } 
+        .loading { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; } 
+        
+        .btn-back { display: block; margin-top: 20px; text-align: center; text-decoration: none; color: #E62B4E; font-weight: bold; }
+        .btn-back:hover { text-decoration: underline; }
+
         .hidden { display: none !important; }
 
-        #mensagem-retorno { margin-top: 30px; color: #E62B4E; font-weight: bold; }
-        .btn-back { display: block; margin-top: 30px; text-align: center; text-decoration: none; color: #E62B4E; font-weight: bold; }
-        .btn-back:hover { text-decoration: underline; }
+        #access-denied { color: #E62B4E; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <div class="header-content">
-                <img src="img/logo.png" alt="Zee Imobiliária Logo" class="logo-header">
-                <h1>Registro de Ponto Eletrônico</h1>
+                <i class="fas fa-user-shield" style="font-size: 30px; margin-right: 15px;"></i>
+                <h1>Registro de Ponto (Admin)</h1>
             </div>
-            <p class="description">Marque sua jornada de trabalho com agilidade.</p>
+            <p class="description">Para uso exclusivo de administradores e gerentes para registrar o ponto de outros funcionários.</p>
         </header>
 
-        <main>
-            <p id="nome-funcionario">Funcionário: **Carregando...**</p>
-            
-            <div id="status-ponto" class="status-fora">
-                STATUS: Você está Fora de Expediente
+        <main id="main-content">
+            <div id="loading-status" style="text-align: center; padding: 50px;">
+                <i class="fas fa-spinner fa-spin fa-2x" style="color: #E62B4E;"></i> 
+                <p style="margin-top: 15px;">Carregando dados e verificando permissão...</p>
             </div>
 
-            <div class="btn-ponto-group">
-                <button id="btn-checkin" class="btn-ponto btn-checkin" onclick="registrarPonto('checkin')">
-                    <i class="fas fa-sign-in-alt"></i> Check-in
-                </button>
-                
-                <button id="btn-pausa" class="btn-ponto btn-pausa hidden" onclick="registrarPonto('pausa')">
-                    <i class="fas fa-mug-hot"></i> Pausa
-                </button>
-
-                <button id="btn-retorno" class="btn-ponto btn-retorno hidden" onclick="registrarPonto('retorno')">
-                    <i class="fas fa-play-circle"></i> Retorno Pausa
-                </button>
-                
-                <button id="btn-checkout" class="btn-ponto btn-checkout hidden" onclick="registrarPonto('checkout')">
-                    <i class="fas fa-sign-out-alt"></i> Check-out
-                </button>
+            <div id="access-denied" class="hidden" style="text-align: center; padding: 50px;">
+                <h2><i class="fas fa-lock"></i> Acesso Negado</h2>
+                <p style="margin-top: 10px;">Você não tem permissão de administrador para acessar esta funcionalidade.</p>
+                <a href="menu.html" class="btn-back"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
             </div>
+
+            <form id="form-registro-ponto" class="hidden">
+                <div class="input-group">
+                    <label for="funcionario-select">Funcionário</label>
+                    <select id="funcionario-select" required>
+                        <option value="" disabled selected>Selecione o funcionário</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="tipo-ponto">Tipo de Ponto a Registrar</label>
+                    <select id="tipo-ponto" required>
+                        <option value="" disabled selected>Escolha o tipo...</option>
+                        <option value="checkin">Entrada (Check-in)</option>
+                        <option value="pausa">Pausa (Almoço/Intervalo)</option>
+                        <option value="retorno">Retorno (Fim da Pausa)</option>
+                        <option value="checkout">Saída (Check-out)</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="observacao">Observação (Opcional)</label>
+                    <textarea id="observacao" rows="3" placeholder="Ex: Esqueceu o crachá, registro manual."></textarea>
+                </div>
+                
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-clock"></i> REGISTRAR PONTO AGORA
+                </button>
+            </form>
             
-            <p id="mensagem-retorno"></p>
-            <a href="menu.html" class="btn-back"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
+            <div id="msg-feedback"></div>
+            <a href="menu.html" class="btn-back" id="back-to-menu-link"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
         </main>
     </div>
     <script>
         const API_BASE_URL = window.location.origin;
-        let estadoAtual = 'fora'; // 'fora', 'trabalhando', 'pausa'
-        let funcionarioId = null;
-        let funcionarioNome = null;
+        const form = document.getElementById('form-registro-ponto');
+        const denied = document.getElementById('access-denied');
+        const loading = document.getElementById('loading-status');
+        const funcionarioSelect = document.getElementById('funcionario-select');
+        const msgFeedback = document.getElementById('msg-feedback');
 
-        function checkLogin() {
-            funcionarioId = localStorage.getItem('usuarioLogadoId');
-            funcionarioNome = localStorage.getItem('usuarioLogadoNome');
+        // Função principal para carregar a página
+        async function initPage() {
+            loading.classList.remove('hidden');
+            form.classList.add('hidden');
+            denied.classList.add('hidden');
 
-            if (!funcionarioId) {
-                window.location.href = 'login.html';
+            const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
+
+            // 1. Verificar permissão de Admin (ou o email específico 'chiaraliraa@gmail.com')
+            // O sistema de permissão 'admin' é o mais seguro.
+            if (userPermissao !== 'admin') {
+                loading.classList.add('hidden');
+                denied.classList.remove('hidden');
                 return;
             }
-            document.getElementById('nome-funcionario').innerHTML = `Funcionário: **${funcionarioNome}**`;
-            // Em uma aplicação real, você buscaria o último status de ponto do funcionário aqui
-            // Por enquanto, vamos manter o 'fora' como padrão inicial
-            atualizarInterface();
-        }
 
-        // Função para atualizar a interface (botões e status)
-        function atualizarInterface() {
-            const statusDiv = document.getElementById('status-ponto');
-            const btns = ['checkin', 'pausa', 'retorno', 'checkout'];
-            
-            btns.forEach(id => document.getElementById(`btn-${id}`).classList.add('hidden'));
+            // 2. Carregar lista de funcionários
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/funcionarios-ponto`);
+                const funcionarios = await response.json();
 
-            statusDiv.classList.remove('status-fora', 'status-trabalhando', 'status-pausa');
+                if (response.ok) {
+                    funcionarios.forEach(func => {
+                        const option = document.createElement('option');
+                        option.value = func._id;
+                        option.textContent = `${func.nome} (${func.cargo})`;
+                        funcionarioSelect.appendChild(option);
+                    });
+                    
+                    loading.classList.add('hidden');
+                    form.classList.remove('hidden');
 
-            if (estadoAtual === 'fora') {
-                statusDiv.textContent = 'STATUS: Você está Fora de Expediente';
-                statusDiv.classList.add('status-fora');
-                document.getElementById('btn-checkin').classList.remove('hidden');
-            } else if (estadoAtual === 'trabalhando') {
-                statusDiv.textContent = 'STATUS: Trabalhando';
-                statusDiv.classList.add('status-trabalhando');
-                document.getElementById('btn-pausa').classList.remove('hidden');
-                document.getElementById('btn-checkout').classList.remove('hidden');
-            } else if (estadoAtual === 'pausa') {
-                statusDiv.textContent = 'STATUS: Em Pausa (Lanche, Almoço, etc.)';
-                statusDiv.classList.add('status-pausa');
-                document.getElementById('btn-retorno').classList.remove('hidden');
+                } else {
+                    displayMessage('Erro ao carregar lista de funcionários.', 'error');
+                }
+            } catch (error) {
+                console.error('Erro de rede ao buscar funcionários:', error);
+                displayMessage('Erro de rede. Verifique a conexão com a API.', 'error');
             }
         }
+        
+        // Função para exibir feedback na tela
+        function displayMessage(message, type) {
+            msgFeedback.className = type;
+            msgFeedback.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i> ${message}`;
+            msgFeedback.style.display = 'block';
+        }
 
-        // Função principal para registrar o ponto
-        async function registrarPonto(tipo) {
-            const mensagemRetornoDiv = document.getElementById('mensagem-retorno');
-            mensagemRetornoDiv.textContent = 'Registrando ponto...';
+        // Evento de submissão do formulário
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            let proximoEstado;
-            let mensagemUsuario = '';
+            const submitBtn = document.querySelector('.btn-submit');
             
-            if (tipo === 'checkin') {
-                proximoEstado = 'trabalhando';
-                mensagemUsuario = `✅ Check-in realizado. Bom trabalho!`;
-            } else if (tipo === 'pausa') {
-                proximoEstado = 'pausa';
-                mensagemUsuario = `☕ Pausa registrada. Aproveite!`;
-            } else if (tipo === 'retorno') {
-                proximoEstado = 'trabalhando';
-                mensagemUsuario = `💪 Retorno de Pausa registrado. De volta ao trabalho!`;
-            } else if (tipo === 'checkout') {
-                proximoEstado = 'fora';
-                mensagemUsuario = `🏠 Check-out realizado. Até amanhã!`;
-            }
+            displayMessage('Aguarde, registrando ponto...', 'loading');
+            submitBtn.disabled = true;
+
+            const dados = {
+                funcionario: funcionarioSelect.value,
+                tipo: document.getElementById('tipo-ponto').value,
+                observacao: document.getElementById('observacao').value
+            };
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/ponto`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ funcionario: funcionarioId, tipo: tipo })
+                    body: JSON.stringify(dados)
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    estadoAtual = proximoEstado; 
-                    mensagemRetornoDiv.textContent = `${mensagemUsuario} (${new Date(data.registro.dataHora).toLocaleTimeString('pt-BR')})`;
+                    displayMessage(`Ponto registrado com sucesso para o funcionário selecionado!`, 'success');
+                    form.reset(); // Limpa o formulário
+                    funcionarioSelect.value = ''; // Reseta o campo de seleção
                 } else {
-                    mensagemRetornoDiv.textContent = `❌ Erro: ${data.message || 'Falha ao registrar ponto.'}`;
+                    displayMessage(`Erro: ${data.message || 'Falha ao registrar ponto.'}`, 'error');
                 }
 
             } catch (error) {
-                console.error('Erro ao registrar ponto:', error);
-                mensagemRetornoDiv.textContent = '❌ Erro de conexão com o servidor.';
+                console.error('Erro de rede ao registrar ponto:', error);
+                displayMessage('Erro de rede. Verifique a conexão com a API.', 'error');
             } finally {
-                atualizarInterface();
+                submitBtn.disabled = false;
             }
-        }
+        });
 
-        window.onload = checkLogin;
+        window.onload = initPage;
     </script>
 </body>
 </html>
