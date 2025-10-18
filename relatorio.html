@@ -43,6 +43,8 @@
 
         .btn-back { display: block; margin-top: 30px; text-align: center; text-decoration: none; color: #E62B4E; font-weight: bold; }
         .btn-back:hover { text-decoration: underline; }
+
+        .error-message { color: red; font-weight: bold; padding: 10px; border: 1px solid red; border-radius: 5px; margin-top: 15px; text-align: center; }
     </style>
 </head>
 <body>
@@ -61,12 +63,17 @@
                     <label for="filtro-funcionario">Selecionar Funcionário:</label>
                     <select id="filtro-funcionario">
                         <option value="todos">-- Todos os Funcionários --</option>
-                        </select>
+                    </select>
                 </div>
                 <button onclick="gerarRelatorio()" class="btn-generate-report">
                     <i class="fas fa-search"></i> Gerar Relatório
                 </button>
             </div>
+
+            <div id="loading-status" style="text-align: center; padding: 20px; display: none;">
+                <i class="fas fa-spinner fa-spin"></i> Carregando lista de funcionários...
+            </div>
+            <div id="funcionario-error" class="error-message" style="display: none;"></div>
 
             <h3 style="margin-top: 30px; color: #333;">Registros de Ponto Detalhados</h3>
             <table id="tabela-relatorio-pontos">
@@ -92,9 +99,10 @@
             const userId = localStorage.getItem('usuarioLogadoId');
             const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
 
+            // Verifica se está logado e se é Admin
             if (!userId || userPermissao !== 'admin') {
-                alert('Você não tem permissão para acessar esta página.');
-                window.location.href = 'menu.html';
+                // Como não deve ter alert, podemos redirecionar diretamente
+                window.location.href = 'login.html'; 
                 return;
             }
             carregarFuncionarios(); // Carrega a lista de funcionários para o filtro
@@ -103,19 +111,38 @@
 
         async function carregarFuncionarios() {
             const selectFuncionario = document.getElementById('filtro-funcionario');
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/funcionarios`);
-                const funcionarios = await response.json();
+            const loadingStatus = document.getElementById('loading-status');
+            const errorDiv = document.getElementById('funcionario-error');
+            
+            loadingStatus.style.display = 'block';
+            errorDiv.style.display = 'none';
 
+            try {
+                // *** CHAMA A ROTA CORRETA DO BACK-END ***
+                const response = await fetch(`${API_BASE_URL}/api/funcionarios-ponto`);
+                const funcionarios = await response.json();
+                
+                loadingStatus.style.display = 'none';
+
+                if (!response.ok) {
+                    errorDiv.textContent = `Falha ao carregar funcionários: ${funcionarios.message || 'Erro de API.'}`;
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                // Adiciona os funcionários à lista
                 funcionarios.forEach(func => {
                     const option = document.createElement('option');
                     option.value = func._id;
-                    option.textContent = `${func.nome} (${func.cargo})`;
+                    // Mostra (Nome - Cargo)
+                    option.textContent = `${func.nome} (${func.cargo})`; 
                     selectFuncionario.appendChild(option);
                 });
             } catch (error) {
+                loadingStatus.style.display = 'none';
+                errorDiv.textContent = 'Erro de rede: Não foi possível conectar ao servidor para buscar a lista de funcionários.';
+                errorDiv.style.display = 'block';
                 console.error('Erro ao carregar funcionários:', error);
-                // Exibir mensagem de erro ao usuário, se necessário
             }
         }
 
@@ -125,18 +152,22 @@
             tabelaBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
 
             try {
+                // Usa o ID do funcionário selecionado (ou 'todos')
                 const response = await fetch(`${API_BASE_URL}/api/relatorio/${funcionarioId}`);
                 const registros = await response.json();
 
                 let htmlContent = '';
-                if (registros.length === 0) {
-                    htmlContent = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum registro encontrado para este funcionário.</td></tr>';
+                if (!response.ok || registros.length === 0) {
+                    htmlContent = `<tr><td colspan="4" style="text-align: center; padding: 20px;">${registros.message || 'Nenhum registro encontrado.'}</td></tr>`;
                 } else {
                     registros.forEach(registro => {
                         const dataHoraFormatada = new Date(registro.dataHora).toLocaleString('pt-BR');
+                        // O Back-end já faz o populate do 'funcionario'
+                        const nomeFuncionario = registro.funcionario ? registro.funcionario.nome : 'N/A';
+
                         htmlContent += `
                             <tr>
-                                <td>${registro.funcionario.nome}</td>
+                                <td>${nomeFuncionario}</td>
                                 <td>${registro.tipo.charAt(0).toUpperCase() + registro.tipo.slice(1)}</td>
                                 <td>${dataHoraFormatada}</td>
                                 <td>${registro.observacao || '-'}</td>
@@ -148,7 +179,7 @@
 
             } catch (error) {
                 console.error('Erro ao gerar relatório:', error);
-                tabelaBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: red;">Erro ao carregar dados do relatório.</td></tr>';
+                tabelaBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: red;">Erro de rede ao carregar dados do relatório.</td></tr>';
             }
         }
     </script>
