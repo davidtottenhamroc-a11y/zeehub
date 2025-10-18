@@ -265,18 +265,24 @@ app.post('/api/ponto', async (req, res) => {
 
 // --- ROTAS DE CONTRATO ---
 
-// Rota para Cadastrar Novo Contrato
-app.post('/api/contratos', async (req, res) => {
-    // Note: A validação de permissão deve ser feita no Front-end (apenas Admin acessa)
-    try {
-        const novoContrato = new Contrato(req.body);
-        await novoContrato.save();
-        res.status(201).json({ message: 'Contrato cadastrado com sucesso!', contrato: novoContrato });
-    } catch (error) {
-        console.error('Erro ao cadastrar contrato:', error);
-        res.status(400).json({ message: 'Falha ao cadastrar contrato.', details: error.message });
-    }
-});
+const contratoSchema = new mongoose.Schema({
+    tipo: { type: String, enum: ['Venda', 'Aluguel'], required: true },
+    imovelEndereco: { type: String, required: true },
+    valorContrato: { type: Number, required: true },
+    corretor: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Funcionario', 
+        required: true 
+    },
+    dataFechamento: { type: Date, default: Date.now },
+    observacoes: { type: String },
+    
+    // CAMPOS PARA ARQUIVO BASE64
+    arquivo: { type: String }, // String grande para o Base64
+    nomeArquivo: { type: String } // Nome original do arquivo
+}, { collection: 'contratos' });
+
+const Contrato = mongoose.models.Contrato || mongoose.model('Contrato', contratoSchema);
 
 // Rota para buscar Relatório de Pontos
 app.get('/api/relatorio/:funcionarioId', async (req, res) => {
@@ -297,4 +303,5 @@ app.get('/api/relatorio/:funcionarioId', async (req, res) => {
 
 
 module.exports = app;
+
 
