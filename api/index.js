@@ -1,106 +1,237 @@
-<script>
-    const API_BASE_URL = window.location.origin;
-    const form = document.getElementById('form-cadastro-usuario');
-    const adminWarning = document.getElementById('admin-warning');
-    const permissaoGroup = document.getElementById('permissao-group');
-    const backToMenu = document.getElementById('back-to-menu');
-    
-    // Oculta o back-to-menu inicialmente, a menos que você queira que ele apareça sempre.
-    backToMenu.href = 'login.html'; // Garante que volte para o Login
-    
-    // Função para verificar e configurar o formulário (Primeiro Admin ou Admin Normal)
-    async function setupForm() {
-        try {
-            // 1. Chama a rota de verificação (agora apenas para configurar o formulário)
-            const response = await fetch(`${API_BASE_URL}/api/admin/check-initial`);
-            
-            // Se a API não responder (erro de rede/CORS), a chamada falha antes do status
-            if (!response.ok && response.status !== 503) {
-                throw new Error('Erro ao verificar o status da API.');
-            }
-            
-            const data = await response.json();
-            const hasAdmin = data.hasAdmin;
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const bcrypt = require('bcryptjs'); 
 
-            if (!hasAdmin) {
-                // CASO INICIAL: SEM ADMINS NO BANCO -> FORÇA ADMIN
-                adminWarning.classList.remove('hidden');
-                permissaoGroup.classList.add('hidden'); // Oculta a seleção
-                // Garante que o valor enviado será 'admin', mesmo que o campo esteja oculto
-                document.getElementById('permissao').value = 'admin'; 
-                
-            } else {
-                // CASO NORMAL: JÁ TEM ADMINS
-                adminWarning.classList.add('hidden');
-                permissaoGroup.classList.remove('hidden');
-                
-                // *** IMPORTANTE: Se o usuário não estiver logado como admin, 
-                // ele só poderá ver esta tela se o seu servidor não exigir login
-                // para acessar o arquivo HTML. A restrição real será no POST.
-            }
+const app = express();
 
-        } catch (error) {
-            // Se houver falha na comunicação, assume-se que é o primeiro admin para permitir
-            // o cadastro inicial caso a API esteja fora/caindo.
-            console.warn('Falha na verificação do status inicial. Assumindo modo de cadastro do PRIMEIRO ADMIN para evitar bloqueio.', error);
-            adminWarning.classList.remove('hidden');
-            permissaoGroup.classList.add('hidden');
-            document.getElementById('permissao').value = 'admin';
+// --- Configurações Iniciais ---
+app.use(cors());
+app.use(express.json());
+
+// A Vercel injetará esta variável de ambiente (MONGO_URI)
+const MONGODB_URI = process.env.MONGO_URI; 
+
+// --- Schemas do Sistema de Ponto da Zee Imobiliária ---
+
+const funcionarioSchema = new mongoose.Schema({
+    nome: { type: String, required: true },
+    email: { type: String, unique: true, sparse: true }, 
+    senha: { type: String }, 
+    cargo: { type: String, required: true },
+    isUser: { type: Boolean, default: false }, 
+    permissao: { 
+        type: String, 
+        enum: ['ponto', 'funcionario', 'admin'], 
+        default: 'ponto' 
+    },
+    createdAt: { type: Date, default: Date.now },
+}, { collection: 'funcionarios' });
+
+// Pré-save hook para HASHEAR a senha
+funcionarioSchema.pre('save', async function(next) {
+    if (this.isUser && this.isModified('senha') && this.senha) {
+        const salt = await bcrypt.genSalt(10);
+        this.senha = await bcrypt.hash(this.senha, salt);
+    }
+    next();
+});
+
+const Funcionario = mongoose.models.Funcionario || mongoose.model('Funcionario', funcionarioSchema);
+
+const pontoSchema = new mongoose.Schema({
+    funcionario: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Funcionario', 
+        required: true 
+    },
+    tipo: { 
+        type: String, 
+        enum: ['checkin', 'pausa', 'retorno', 'checkout'], 
+        required: true 
+    },
+    dataHora: { 
+        type: Date, 
+        default: Date.now,
+        required: true
+    },
+    observacao: { type: String }
+}, { collection: 'pontos' });
+
+const Ponto = mongoose.models.Ponto || mongoose.model('Ponto', pontoSchema);
+
+
+// --- FUNÇÃO DE CONEXÃO E INICIALIZAÇÃO DO MONGODB ---
+
+// Na Vercel, a conexão do Mongoose deve ocorrer antes do tratamento das rotas.
+// Adicionamos um controle de erro mais robusto para garantir a conexão antes de qualquer query.
+
+if (!MONGODB_URI) {
+    console.error('ERRO: Variável MONGO_URI não definida. Verifique as Environment Variables na Vercel.');
+} else if (mongoose.connection.readyState === 0) { // Se não estiver conectado
+    mongoose.connect(MONGODB_URI)
+        .then(() => {
+            console.log('Conexão estabelecida com MongoDB Atlas!');
+        })
+        .catch(err => {
+            console.error('Erro FATAL de conexão com o MongoDB. Verifique a string e o Network Access:', err.message);
+        });
+}
+
+
+// ------------------------------------
+// --- Rotas da API Zee Imobiliária ---
+// ------------------------------------
+
+// Rota de Teste
+app.get('/', (req, res) => {
+    res.status(200).send('API de Gestão de Tempo da Zee Imobiliária Rodando.');
+});
+
+
+// Rota para verificar se existe um Administrador (Usada pelo Front-end para desbloquear o cadastro)
+app.get('/api/admin/check-initial', async (req, res) => {
+    try {
+        // Controle para garantir que a conexão Mongoose está ativa no ambiente serverless
+        if (mongoose.connection.readyState !== 1) {
+             console.error('Tentativa de acesso à API com conexão MongoDB inativa.');
+             // Retorna 503 (Service Unavailable) se o banco estiver fora
+             return res.status(503).json({ message: 'Serviço indisponível. Conexão com o banco de dados falhou.' });
         }
+        
+        const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
+        res.json({ hasAdmin: adminCount > 0 });
+    } catch (error) {
+        console.error('Erro ao verificar admins:', error);
+        res.status(500).json({ message: 'Erro ao verificar administradores.' });
+    }
+});
+
+
+// Rota para autenticação (Login)
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        // ... (o código da rota de login permanece o mesmo)
+        const { email, senha } = req.body;
+        
+        const funcionario = await Funcionario.findOne({ email, isUser: true });
+
+        if (!funcionario) {
+            return res.status(401).json({ authenticated: false, message: 'Usuário não encontrado ou não tem permissão de acesso.' });
+        }
+        
+        const isMatch = await bcrypt.compare(senha, funcionario.senha);
+
+        if (!isMatch) {
+            return res.status(401).json({ authenticated: false, message: 'Email ou senha inválidos.' });
+        }
+
+        res.json({ 
+            authenticated: true,
+            id: funcionario._id, 
+            nome: funcionario.nome, 
+            permissao: funcionario.permissao 
+        });
+
+    } catch (error) {
+        console.error('Erro durante a autenticação:', error);
+        res.status(500).json({ authenticated: false, message: 'Erro interno do servidor.' });
+    }
+});
+
+
+// Rota UNIFICADA de Cadastro (Funcionario Ponto OU Usuário com Acesso)
+app.post('/api/cadastro', async (req, res) => {
+    // ... (o código da rota de cadastro permanece o mesmo)
+    const { nome, email, senha, cargo, permissao } = req.body;
+    
+    const isUser = !!email && !!senha; 
+    let finalPermissao = isUser ? (permissao || 'funcionario') : 'ponto'; 
+
+    try {
+        if (isUser) {
+            const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
+            if (adminCount === 0) {
+                finalPermissao = 'admin'; 
+                console.log(`Primeiro usuário cadastrado: Forçando permissão para ${finalPermissao}.`);
+            }
+        }
+        
+        const novoFuncionario = new Funcionario({
+            nome,
+            email: isUser ? email : undefined,
+            senha: isUser ? senha : undefined,
+            cargo,
+            isUser,
+            permissao: finalPermissao
+        });
+
+        await novoFuncionario.save();
+        res.status(201).json({ 
+            message: `${isUser ? 'Usuário' : 'Funcionário Ponto'} cadastrado com sucesso!`, 
+            id: novoFuncionario._id 
+        });
+    } catch (error) {
+        if (error.code === 11000) { 
+            return res.status(400).json({ message: 'O email já está em uso.' });
+        }
+        res.status(400).json({ message: 'Erro ao cadastrar.', details: error.message });
+    }
+});
+
+
+// Rota para buscar TODOS os funcionários (para filtro de relatórios)
+app.get('/api/funcionarios-ponto', async (req, res) => {
+    try {
+        const funcionarios = await Funcionario.find({}, '_id nome cargo isUser').sort({ nome: 1 });
+        res.send(funcionarios);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar lista de funcionários.' });
+    }
+});
+
+
+// Rota para Registro de Ponto
+app.post('/api/ponto', async (req, res) => {
+    // ... (o código da rota de ponto permanece o mesmo)
+    const { funcionario, tipo, observacao } = req.body;
+    
+    if (!funcionario || !tipo) {
+        return res.status(400).json({ message: 'ID do funcionário e tipo de ponto são obrigatórios.' });
     }
     
-    // Inicia a configuração do formulário assim que a página carrega
-    setupForm();
+    try {
+        const novoRegistro = new Ponto({ funcionario, tipo, observacao, dataHora: new Date() });
+        await novoRegistro.save();
+        res.status(201).json({ message: `Ponto (${tipo}) registrado com sucesso.`, registro: novoRegistro });
+    } catch (error) {
+        res.status(400).json({ message: 'Falha ao registrar o ponto.', details: error.message });
+    }
+});
 
 
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const msg = document.getElementById('msg-feedback');
-        const submitBtn = document.querySelector('.btn-submit');
-        
-        msg.className = 'loading';
-        msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguarde, cadastrando usuário...';
-        msg.style.display = 'block';
-        submitBtn.disabled = true;
+// Rota para buscar Relatório de Pontos
+app.get('/api/relatorio/:funcionarioId', async (req, res) => {
+    // ... (o código da rota de relatório permanece o mesmo)
+    const { funcionarioId } = req.params;
 
-        const dados = {
-            nome: document.getElementById('nome').value,
-            email: document.getElementById('email').value,
-            senha: document.getElementById('senha').value,
-            cargo: document.getElementById('cargo').value,
-            // Pega o valor, que pode ter sido setado para 'admin' na configuração
-            permissao: document.getElementById('permissao').value 
-        };
+    try {
+        const query = funcionarioId === 'todos' ? {} : { funcionario: funcionarioId };
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/cadastro`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dados)
-            });
+        const registros = await Ponto.find(query)
+            .populate('funcionario', 'nome cargo') 
+            .sort({ dataHora: -1 });
 
-            const data = await response.json();
+        res.send(registros);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar relatórios de ponto.' });
+    }
+});
 
-            if (response.ok) {
-                msg.className = 'success';
-                msg.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message} Agora você pode fazer login.`;
-                form.reset(); 
-                
-                // Redireciona para o login após 3s
-                setTimeout(() => { window.location.href = 'login.html'; }, 3000);
-                
-            } else {
-                msg.className = 'error';
-                msg.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${data.message || 'Falha ao cadastrar usuário.'}`;
-            }
 
-        } catch (error) {
-            msg.className = 'error';
-            msg.innerHTML = '<i class="fas fa-times-circle"></i> Erro de rede. Verifique a conexão com a API.';
-        } finally {
-            submitBtn.disabled = false;
-            // Refaz a checagem após o cadastro para redefinir o estado de "primeiro admin"
-            setupForm(); 
-        }
-    });
-</script>
+// ------------------------------------
+// --- Exporta o App para a Vercel ---
+// ------------------------------------
+// ESTE É O PASSO CHAVE: A Vercel usará este módulo exportado para criar a função Serverless.
+// O BLOCO app.listen() FOI REMOVIDO.
+module.exports = app;
