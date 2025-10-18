@@ -11,12 +11,6 @@ app.use(express.json());
 
 const MONGODB_URI = process.env.MONGO_URI; 
 
-mongoose.connect(MONGODB_URI)
-    .then(() => console.log('Conexão estabelecida com MongoDB Atlas!'))
-    .catch(err => {
-        console.error('Erro FATAL de conexão com o MongoDB:', err);
-    });
-
 // --- Schemas ---
 
 const funcionarioSchema = new mongoose.Schema({
@@ -67,6 +61,54 @@ const pontoSchema = new mongoose.Schema({
 }, { collection: 'pontos' });
 
 const Ponto = mongoose.models.Ponto || mongoose.model('Ponto', pontoSchema);
+
+
+// --- FUNÇÃO DE INICIALIZAÇÃO DO USUÁRIO PADRÃO ---
+
+async function createInitialUser() {
+    try {
+        // Verifica se já existe algum usuário administrador
+        const adminExists = await Funcionario.findOne({ isUser: true, permissao: 'admin' });
+
+        if (!adminExists) {
+            console.log('Nenhum usuário administrador encontrado. Criando usuário padrão...');
+            
+            const defaultEmail = 'USER';
+            const defaultPassword = 'adminotimus32';
+
+            // Hash da senha (necessário pois o hook 'pre' não é chamado diretamente aqui)
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(defaultPassword, salt);
+
+            const initialAdmin = new Funcionario({
+                nome: 'Administrador Padrão (USER)',
+                email: defaultEmail,
+                senha: hashedPassword, // Senha já hashed
+                cargo: 'Administrador do Sistema',
+                isUser: true,
+                permissao: 'admin'
+            });
+
+            await initialAdmin.save();
+            console.log(`Usuário padrão criado com sucesso. Login: ${defaultEmail}, Senha: ${defaultPassword}`);
+        } else {
+            console.log('Usuário administrador já existe. Nenhuma ação de inicialização necessária.');
+        }
+    } catch (error) {
+        console.error('Erro ao tentar criar usuário inicial:', error.message);
+    }
+}
+
+// --- CONEXÃO COM O BANCO DE DADOS E CHAMADA DA FUNÇÃO DE INICIALIZAÇÃO ---
+
+mongoose.connect(MONGODB_URI)
+    .then(() => {
+        console.log('Conexão estabelecida com MongoDB Atlas!');
+        createInitialUser(); // Chama a função após a conexão ser estabelecida
+    })
+    .catch(err => {
+        console.error('Erro FATAL de conexão com o MongoDB:', err);
+    });
 
 
 // --- Rotas da API ---
