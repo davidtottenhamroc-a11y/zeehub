@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zee Imobiliária - Cadastro de Contrato</title>
+    <title>Zee Hub - Cadastro de Contrato</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Estilos base (vermelho/branco) */
@@ -25,6 +25,10 @@
         .input-group input, .input-group select, .input-group textarea { 
             width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; 
             transition: border-color 0.3s; font-size: 16px;
+        }
+        .input-group input[type="file"] {
+            border: none;
+            padding: 10px 0;
         }
         .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: #E62B4E; outline: none; box-shadow: 0 0 5px rgba(230, 43, 78, 0.5); }
         
@@ -104,6 +108,13 @@
                     <input type="date" id="dataFechamento" required>
                 </div>
                 
+                <!-- NOVO CAMPO DE ARQUIVO -->
+                <div class="input-group">
+                    <label for="arquivoContrato">Anexar Contrato (PDF/Imagem - Máx 1MB)</label>
+                    <input type="file" id="arquivoContrato" accept=".pdf, image/*">
+                </div>
+                <!-- FIM NOVO CAMPO -->
+
                 <div class="input-group">
                     <label for="observacoes">Observações</label>
                     <textarea id="observacoes" rows="3"></textarea>
@@ -120,6 +131,17 @@
     </div>
     <script>
         const API_BASE_URL = window.location.origin;
+        const MAX_FILE_SIZE = 1048576; // 1 MB em bytes
+
+        // Função para converter arquivo para Base64
+        function getBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
 
         // Função para carregar corretores (funcionários com login)
         async function loadCorretores() {
@@ -131,7 +153,8 @@
                 const select = document.getElementById('corretor-select');
                 select.innerHTML = '<option value="" disabled selected>Selecione o corretor...</option>';
 
-                funcionarios.filter(f => f.permissao !== 'ponto').forEach(func => {
+                // Filtra apenas usuários com login (admin, gestor, funcionario)
+                funcionarios.filter(f => f.isUser).forEach(func => { 
                     const option = document.createElement('option');
                     option.value = func._id;
                     option.textContent = `${func.nome} (${func.cargo})`;
@@ -177,16 +200,35 @@
             msg.style.display = 'block';
             submitBtn.disabled = true;
 
-            const dados = {
-                tipo: document.getElementById('tipo').value,
-                imovelEndereco: document.getElementById('imovelEndereco').value,
-                valorContrato: parseFloat(document.getElementById('valorContrato').value),
-                corretor: document.getElementById('corretor-select').value,
-                dataFechamento: document.getElementById('dataFechamento').value,
-                observacoes: document.getElementById('observacoes').value
-            };
-            
+            const arquivoInput = document.getElementById('arquivoContrato');
+            const file = arquivoInput.files[0];
+            let arquivoBase64 = null;
+            let fileName = null;
+
             try {
+                // 1. Processar Arquivo (Base64)
+                if (file) {
+                    if (file.size > MAX_FILE_SIZE) {
+                        throw new Error("Arquivo muito grande. O tamanho máximo é 1MB.");
+                    }
+                    arquivoBase64 = await getBase64(file);
+                    fileName = file.name;
+                }
+
+                // 2. Montar Dados
+                const dados = {
+                    tipo: document.getElementById('tipo').value,
+                    imovelEndereco: document.getElementById('imovelEndereco').value,
+                    valorContrato: parseFloat(document.getElementById('valorContrato').value),
+                    corretor: document.getElementById('corretor-select').value,
+                    dataFechamento: document.getElementById('dataFechamento').value,
+                    observacoes: document.getElementById('observacoes').value,
+                    // Dados do arquivo
+                    arquivo: arquivoBase64,
+                    nomeArquivo: fileName
+                };
+                
+                // 3. Enviar para a API
                 const response = await fetch(`${API_BASE_URL}/api/contratos`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -206,8 +248,10 @@
                 }
 
             } catch (error) {
+                // Captura erros de arquivo (Base64 ou tamanho) e erros de rede
+                const errorMessage = error.message.includes("Falha") ? error.message : `Erro: ${error.message}`;
                 msg.className = 'error';
-                msg.innerHTML = '<i class="fas fa-times-circle"></i> Erro de rede. Verifique a conexão com a API.';
+                msg.innerHTML = `<i class="fas fa-times-circle"></i> ${errorMessage}`;
             } finally {
                 submitBtn.disabled = false;
             }
