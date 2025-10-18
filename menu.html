@@ -79,7 +79,7 @@
                     </div>
                 </a>
                 <!-- Apenas para ADMIN -->
-                <a href="cadastro_contrato.html" class="menu-card hidden-by-permission" id="card-cadastro-usuario">
+                <a href="cadastro_contrato.html" class="menu-card hidden-by-permission" id="card-cadastro-contrato">
                     <div class="card-icon"><i class="fas fa-file-signature"></i></div>
                     <div>
                         <h2 class="card-title">Casdastro de Contratos Fechados</h2>
@@ -118,6 +118,7 @@
             const cardRelatorio = document.getElementById('card-relatorio-ponto');
             const cardPontoAdmin = document.getElementById('card-ponto-admin');
             const cardCadastroUsuario = document.getElementById('card-cadastro-usuario');
+            const cardCadastrocontrato = document.getElementById('card-cadastro-contrato');
             const cardCadastroPonto = document.getElementById('card-cadastro-ponto');
 
             // --- Lógica de Permissão ---
@@ -128,6 +129,7 @@
                 cardPontoAdmin.classList.remove('hidden-by-permission');
                 cardCadastroUsuario.classList.remove('hidden-by-permission');
                 cardCadastroPonto.classList.remove('hidden-by-permission');
+                cardCadastrocontrato.classList.remove('hidden-by-permission');
                 
             } else if (userPermissao === 'gestor') {
                  // Gestor vê APENAS: Relatório
@@ -158,5 +160,6 @@
     </script>
 </body>
 </html>
+
 
 
