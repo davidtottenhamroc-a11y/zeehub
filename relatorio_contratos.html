@@ -61,7 +61,7 @@
                 <i class="fas fa-chart-line text-3xl mr-3"></i>
                 <h1 class="text-3xl font-bold">Relatório e Dashboard de Contratos</h1>
             </div>
-            <p class="mt-1 opacity-90">Análise de Vendas e Aluguéis Fechados (Restrito a Admin)</p>
+            <p class="mt-1 opacity-90">Análise de Vendas e Aluguéis Fechados (Restrito a Admin/Gestor)</p>
         </header>
 
         <main class="p-6">
@@ -73,7 +73,7 @@
             <div id="access-denied" class="hidden text-center text-red-600 py-10">
                 <i class="fas fa-lock text-5xl mb-4"></i>
                 <h2 class="text-2xl font-bold">Acesso Negado</h2>
-                <p class="text-lg">Esta página é restrita apenas a usuários com permissão **Admin**.</p>
+                <p class="text-lg">Esta página é restrita apenas a usuários com permissão **Admin** ou **Gestor**.</p>
                 <a href="menu.html" class="inline-block mt-4 text-primary hover:underline font-semibold"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
             </div>
 
@@ -390,8 +390,9 @@
             const loading = document.getElementById('loading-status');
             const content = document.getElementById('report-content');
             const denied = document.getElementById('access-denied');
-
-            if (userPermissao !== 'admin') {
+            
+            // VERIFICAÇÃO DE PERMISSÃO ATUALIZADA: Permite 'admin' ou 'gestor'
+            if (userPermissao !== 'admin' && userPermissao !== 'gestor') {
                 loading.classList.add('hidden');
                 denied.classList.remove('hidden');
                 return;
