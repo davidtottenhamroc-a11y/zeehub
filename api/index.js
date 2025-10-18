@@ -9,7 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const MONGODB_URI = process.env.MONGO_URI; 
+const MONGODB_URI = process.env.MONGODB_URI || mongodb+srv:"//davidtottenhamroc_db_user:tottenham0724@cluster0.4h8fure.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 // --- Schemas (Mantidos Iguais) ---
 // ... (funcionarioSchema e pontoSchema permanecem os mesmos)
@@ -188,3 +188,4 @@ app.get('/api/relatorio/:funcionarioId', async (req, res) => {
 
 
 module.exports = app;
+
