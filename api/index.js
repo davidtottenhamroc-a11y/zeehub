@@ -7,8 +7,10 @@ const app = express();
 
 // --- Configurações Iniciais ---
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' })); // CRÍTICO: Aumenta o limite para aceitar o Base64 do arquivo
+// Para arquivos de 1MB, 5MB de limite é seguro.
 
+// A string de conexão DEVE ser configurada APENAS como variável de ambiente (MONGO_URI) no Vercel.
 const MONGODB_URI = process.env.MONGO_URI || "mongodb+srv://davidtottenhamroc_db_user:david0724@cluster0.q29vt6z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; 
 
 // --- Schemas do Sistema de Ponto da Zee Imobiliária ---
@@ -60,6 +62,27 @@ const pontoSchema = new mongoose.Schema({
 const Ponto = mongoose.models.Ponto || mongoose.model('Ponto', pontoSchema);
 
 
+// --- NOVO SCHEMA: Contrato Imobiliário (com campo Base64) ---
+const contratoSchema = new mongoose.Schema({
+    tipo: { type: String, enum: ['Venda', 'Aluguel'], required: true },
+    imovelEndereco: { type: String, required: true },
+    valorContrato: { type: Number, required: true },
+    corretor: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Funcionario', 
+        required: true 
+    },
+    dataFechamento: { type: Date, default: Date.now },
+    observacoes: { type: String },
+    
+    // CAMPOS PARA ARQUIVO BASE64
+    arquivo: { type: String }, // String grande para o Base64
+    nomeArquivo: { type: String } // Nome original do arquivo
+}, { collection: 'contratos' });
+
+const Contrato = mongoose.models.Contrato || mongoose.model('Contrato', contratoSchema);
+
+
 // --- FUNÇÃO DE CONEXÃO E INICIALIZAÇÃO ---
 
 if (!MONGODB_URI) {
@@ -85,7 +108,7 @@ app.get('/', (req, res) => {
 });
 
 
-// Rota para verificar se existe um Administrador (Usada pelo Front-end para desbloquear o cadastro)
+// Rota para verificar se existe um Administrador
 app.get('/api/admin/check-initial', async (req, res) => {
     try {
         const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
@@ -97,7 +120,7 @@ app.get('/api/admin/check-initial', async (req, res) => {
 });
 
 
-// Rota para autenticação (Login) - Mantida para verificar E-mail
+// Rota para autenticação (Login)
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, senha } = req.body;
@@ -128,49 +151,40 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 
-// Rota UNIFICADA de Cadastro (Funcionario Ponto OU Usuário com Acesso)
+// Rota UNIFICADA de Cadastro (Funcionário Ponto OU Usuário com Acesso)
 app.post('/api/cadastro', async (req, res) => {
     const { nome, email, senha, cargo, permissao } = req.body;
     
-    // Indica que estamos tentando criar um usuário com login
     const isUserRequest = !!email && !!senha; 
     let finalPermissao = isUserRequest ? (permissao || 'funcionario') : 'ponto'; 
 
     try {
         let funcionarioExistente = null;
         
-        // 1. Lógica de Vinculação: Verifica se o e-mail já está cadastrado
         if (email) {
             funcionarioExistente = await Funcionario.findOne({ email });
         }
 
-        // --- Se o registro for para um USUÁRIO COM ACESSO (Login) ---
         if (isUserRequest) {
             
-            // 2. Verifica cenário de DUPLICIDADE/VINCULAÇÃO
             if (funcionarioExistente) {
-                // Se o funcionário JÁ é um usuário com login, retorna erro de duplicidade
                 if (funcionarioExistente.isUser) {
                      return res.status(400).json({ message: 'O e-mail já está em uso por outro usuário com acesso. Não é possível vincular.' });
                 }
                 
-                // Se o funcionário NÃO é um usuário com login (isUser: false), FAZ A VINCULAÇÃO/ATUALIZAÇÃO.
-                // Hash da nova senha
                 const salt = await bcrypt.genSalt(10);
                 const hashedPassword = await bcrypt.hash(senha, salt);
                 
-                // Lógica de Admin Inicial (força Admin se for o primeiro)
                 const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
                 if (adminCount === 0) {
                      finalPermissao = 'admin'; 
                 }
 
-                // Atualiza o documento existente
                 const atualizado = await Funcionario.findByIdAndUpdate(funcionarioExistente._id, {
                     senha: hashedPassword,
                     isUser: true,
                     permissao: finalPermissao,
-                    nome: nome, // Atualiza nome caso tenha sido digitado de forma diferente
+                    nome: nome, 
                     cargo: cargo
                 }, { new: true });
 
@@ -180,9 +194,7 @@ app.post('/api/cadastro', async (req, res) => {
                 });
 
             } else {
-                // 3. SE O E-MAIL NÃO EXISTE: Cria um novo usuário com as credenciais.
                 
-                // Lógica de Admin Inicial (força Admin se for o primeiro)
                 const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
                 if (adminCount === 0) {
                      finalPermissao = 'admin'; 
@@ -191,7 +203,7 @@ app.post('/api/cadastro', async (req, res) => {
                 const novoUsuario = new Funcionario({
                     nome,
                     email,
-                    senha, // O hook pre('save') fará o hash
+                    senha, 
                     cargo,
                     isUser: true,
                     permissao: finalPermissao
@@ -207,15 +219,13 @@ app.post('/api/cadastro', async (req, res) => {
         } else {
             // --- Se o registro for para um FUNCIONÁRIO SÓ PONTO (Sem Login) ---
             
-            // 4. Se o e-mail já existir, retorna erro para evitar duplicidade de ponto.
             if (funcionarioExistente) {
                 return res.status(400).json({ message: 'O e-mail já está em uso por um colaborador. Não é possível cadastrar duas vezes.' });
             }
 
-            // Cria um novo funcionário só ponto
             const novoPonto = new Funcionario({
                 nome,
-                email: email || undefined, // Salva o email se houver, mas sem senha/isUser
+                email: email || undefined, 
                 cargo,
                 isUser: false,
                 permissao: 'ponto'
@@ -263,26 +273,67 @@ app.post('/api/ponto', async (req, res) => {
     }
 });
 
-// --- ROTAS DE CONTRATO ---
 
-const contratoSchema = new mongoose.Schema({
-    tipo: { type: String, enum: ['Venda', 'Aluguel'], required: true },
-    imovelEndereco: { type: String, required: true },
-    valorContrato: { type: Number, required: true },
-    corretor: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Funcionario', 
-        required: true 
-    },
-    dataFechamento: { type: Date, default: Date.now },
-    observacoes: { type: String },
-    
-    // CAMPOS PARA ARQUIVO BASE64
-    arquivo: { type: String }, // String grande para o Base64
-    nomeArquivo: { type: String } // Nome original do arquivo
-}, { collection: 'contratos' });
+// --- ROTAS DE CONTRATO (Aceitando Base64) ---
 
-const Contrato = mongoose.models.Contrato || mongoose.model('Contrato', contratoSchema);
+// Rota para Cadastrar Novo Contrato
+app.post('/api/contratos', async (req, res) => {
+    // Note: A validação de permissão deve ser feita no Front-end (apenas Admin acessa)
+    try {
+        const novoContrato = new Contrato(req.body); // Os campos arquivo e nomeArquivo são incluídos aqui
+        await novoContrato.save();
+        res.status(201).json({ message: 'Contrato cadastrado com sucesso!', contrato: novoContrato });
+    } catch (error) {
+        console.error('Erro ao cadastrar contrato:', error);
+        res.status(400).json({ message: 'Falha ao cadastrar contrato.', details: error.message });
+    }
+});
+
+// Rota para buscar Contratos para o Relatório (Filtro por Corretor)
+app.get('/api/contratos/relatorio/:corretorId', async (req, res) => {
+    const { corretorId } = req.params;
+
+    try {
+        const query = corretorId === 'todos' ? {} : { corretor: corretorId };
+
+        // Popula o corretor com apenas nome e cargo para a tabela
+        const contratos = await Contrato.find(query)
+            .populate('corretor', 'nome cargo') 
+            .sort({ dataFechamento: -1 }); // Ordena do mais recente para o mais antigo
+
+        res.send(contratos);
+    } catch (error) {
+        console.error('Erro ao buscar contratos:', error);
+        res.status(500).json({ message: 'Erro ao buscar contratos.' });
+    }
+});
+
+// Rota para buscar Dados de Dashboard (Contratos Fechados Mensalmente)
+app.get('/api/contratos/dashboard', async (req, res) => {
+    try {
+        const dashboardData = await Contrato.aggregate([
+            {
+                $group: {
+                    _id: {
+                        year: { $year: "$dataFechamento" },
+                        month: { $month: "$dataFechamento" }
+                    },
+                    totalContratos: { $sum: 1 },
+                    totalValor: { $sum: "$valorContrato" }
+                }
+            },
+            {
+                $sort: { "_id.year": 1, "_id.month": 1 }
+            }
+        ]);
+
+        res.send(dashboardData);
+    } catch (error) {
+        console.error('Erro ao gerar dados do dashboard:', error);
+        res.status(500).json({ message: 'Erro ao gerar dados do dashboard.' });
+    }
+});
+
 
 // Rota para buscar Relatório de Pontos
 app.get('/api/relatorio/:funcionarioId', async (req, res) => {
@@ -303,5 +354,3 @@ app.get('/api/relatorio/:funcionarioId', async (req, res) => {
 
 
 module.exports = app;
-
-
