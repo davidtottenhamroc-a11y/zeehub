@@ -9,21 +9,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// A string de conexão DEVE ser configurada APENAS como variável de ambiente (MONGO_URI) no Vercel.
 const MONGODB_URI = process.env.MONGO_URI || "mongodb+srv://davidtottenhamroc_db_user:david0724@cluster0.q29vt6z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; 
 
 // --- Schemas do Sistema de Ponto da Zee Imobiliária ---
 
 const funcionarioSchema = new mongoose.Schema({
     nome: { type: String, required: true },
-    // E-mail é único (sparse: true permite múltiplos nulos, mas mantém a unicidade)
+    // Email: Único se não for nulo (sparse), permitindo identificação de ponto.
     email: { type: String, unique: true, sparse: true }, 
     senha: { type: String }, 
     cargo: { type: String, required: true },
     isUser: { type: Boolean, default: false }, 
     permissao: { 
         type: String, 
-        // ADICIONADO 'gestor'
-        enum: ['ponto', 'funcionario', 'admin', 'gestor'], 
+        enum: ['ponto', 'funcionario', 'gestor', 'admin'], // Adicionado 'gestor'
         default: 'ponto' 
     },
     createdAt: { type: Date, default: Date.now },
@@ -62,7 +62,7 @@ const pontoSchema = new mongoose.Schema({
 const Ponto = mongoose.models.Ponto || mongoose.model('Ponto', pontoSchema);
 
 
-// --- FUNÇÃO DE CONEXÃO ---
+// --- FUNÇÃO DE CONEXÃO E INICIALIZAÇÃO ---
 
 if (!MONGODB_URI) {
     console.error('ERRO: Variável MONGO_URI não definida.');
@@ -90,7 +90,9 @@ app.get('/', (req, res) => {
 // Rota para verificar se existe um Administrador (Usada pelo Front-end para desbloquear o cadastro)
 app.get('/api/admin/check-initial', async (req, res) => {
     try {
+        // Conta quantos usuários de login têm permissão 'admin'
         const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
+        // hasAdmin: true se já houver admins, false se for a primeira vez
         res.json({ hasAdmin: adminCount > 0 });
     } catch (error) {
         console.error('Erro ao verificar admins:', error);
@@ -99,7 +101,7 @@ app.get('/api/admin/check-initial', async (req, res) => {
 });
 
 
-// Rota para autenticação (Login)
+// Rota para autenticação (Login) - Mantida para verificar E-mail
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, senha } = req.body;
@@ -134,12 +136,12 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/cadastro', async (req, res) => {
     const { nome, email, senha, cargo, permissao } = req.body;
     
-    // isUser é true APENAS se houver email E senha (login)
+    // O E-mail e Senha estão presentes APENAS se for um usuário com acesso (Login)
     const isUser = !!email && !!senha; 
-    let finalPermissao = isUser ? (permissao || 'funcionario') : 'ponto';
+    let finalPermissao = isUser ? (permissao || 'funcionario') : 'ponto'; 
 
     try {
-        // LÓGICA DE PROTEÇÃO INICIAL: Força o primeiro usuário com login a ser ADMIN
+        // LÓGICA DE PROTEÇÃO INICIAL: Força o primeiro usuário a ser ADMIN
         if (isUser) {
             const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
             if (adminCount === 0) {
@@ -150,7 +152,7 @@ app.post('/api/cadastro', async (req, res) => {
         
         const novoFuncionario = new Funcionario({
             nome,
-            // CORREÇÃO: Salva o email para TODOS (isUser ou não) para fins de ponto
+            // Captura o email mesmo para o tipo 'ponto' (sem login)
             email: email, 
             senha: isUser ? senha : undefined,
             cargo,
@@ -172,7 +174,7 @@ app.post('/api/cadastro', async (req, res) => {
 });
 
 
-// Rota para buscar TODOS os funcionários (para filtro de relatórios e ponto admin)
+// Rota para buscar TODOS os funcionários (para filtro de relatórios)
 app.get('/api/funcionarios-ponto', async (req, res) => {
     try {
         const funcionarios = await Funcionario.find({}, '_id nome cargo isUser').sort({ nome: 1 });
