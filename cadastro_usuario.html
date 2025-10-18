@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zee Imobiliária - Cadastro de Usuário com Acesso</title>
+    <title>Zee HUB - Cadastro de Usuário</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Estilos base (vermelho/branco) */
@@ -45,6 +45,8 @@
         
         .btn-back { display: block; margin-top: 20px; text-align: center; text-decoration: none; color: #E62B4E; font-weight: bold; }
         .btn-back:hover { text-decoration: underline; }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -57,8 +59,22 @@
             <p class="description">Crie contas para administradores e gerentes que farão login no sistema.</p>
         </header>
 
-        <main>
-            <form id="form-cadastro-usuario">
+        <main id="main-content">
+            <div id="loading-check" style="text-align: center; padding: 50px;">
+                <i class="fas fa-spinner fa-spin fa-2x" style="color: #E62B4E;"></i> 
+                <p style="margin-top: 15px;">Verificando status do sistema...</p>
+            </div>
+
+            <div id="access-denied" class="hidden" style="text-align: center; padding: 50px; color: #E62B4E;">
+                <h2>Acesso Restrito</h2>
+                <p style="margin-top: 10px;">Esta página é exclusiva para Administradores. Por favor, faça login para continuar.</p>
+                <a href="login.html" class="btn-back"><i class="fas fa-sign-in-alt"></i> Ir para Login</a>
+            </div>
+
+            <form id="form-cadastro-usuario" class="hidden">
+                <div id="admin-warning" class="hidden error" style="margin-bottom: 20px; padding: 10px;">
+                    <i class="fas fa-exclamation-triangle"></i> ATENÇÃO: Você está cadastrando o **primeiro** Administrador do sistema. Esta ação é irreversível.
+                </div>
                 
                 <div class="input-group">
                     <label for="nome">Nome Completo</label>
@@ -80,7 +96,7 @@
                     <input type="text" id="cargo" required>
                 </div>
 
-                <div class="input-group">
+                <div class="input-group" id="permissao-group">
                     <label for="permissao">Nível de Acesso ao Sistema</label>
                     <select id="permissao" required>
                         <option value="funcionario">Funcionário (Acesso Básico ao Menu)</option>
@@ -94,23 +110,60 @@
             </form>
             
             <div id="msg-feedback"></div>
-            <a href="menu.html" class="btn-back"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
+            <a href="menu.html" class="btn-back hidden" id="back-to-menu"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
         </main>
     </div>
     <script>
         const API_BASE_URL = window.location.origin;
+        const form = document.getElementById('form-cadastro-usuario');
+        const denied = document.getElementById('access-denied');
+        const loading = document.getElementById('loading-check');
+        const adminWarning = document.getElementById('admin-warning');
+        const backToMenu = document.getElementById('back-to-menu');
+        const permissaoGroup = document.getElementById('permissao-group');
 
-        function checkAdminPermission() {
+        async function checkAccess() {
+            // Verifica o localStorage para login ATUAL, mas continua se não estiver logado
             const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
-            if (userPermissao !== 'admin') {
-                alert('Você não tem permissão para acessar esta página.');
-                window.location.href = 'menu.html';
+
+            try {
+                // 1. Chama a rota de verificação do Back-end para saber se há admins
+                const response = await fetch(`${API_BASE_URL}/api/admin/check-initial`);
+                const data = await response.json();
+                
+                loading.classList.add('hidden');
+
+                const hasAdmin = data.hasAdmin;
+
+                if (!hasAdmin) {
+                    // 2. CASO INICIAL: SEM ADMINS NO BANCO -> PERMITE ACESSO TOTAL
+                    form.classList.remove('hidden');
+                    adminWarning.classList.remove('hidden');
+                    permissaoGroup.classList.add('hidden'); // Oculta, pois será Admin por padrão
+                    backToMenu.classList.remove('hidden');
+                    
+                } else if (hasAdmin && userPermissao === 'admin') {
+                    // 3. CASO NORMAL: LOGADO COMO ADMIN -> PERMITE ACESSO NORMAL
+                    form.classList.remove('hidden');
+                    permissaoGroup.classList.remove('hidden');
+                    backToMenu.classList.remove('hidden');
+
+                } else {
+                    // 4. BLOQUEIO: JÁ TEM ADMINS E NÃO ESTÁ LOGADO OU NÃO É ADMIN
+                    denied.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                // Se a API falhar (ex: erro de conexão do MongoDB), informa o erro de conexão.
+                denied.classList.remove('hidden');
+                denied.querySelector('p').textContent = 'Erro ao conectar com o servidor para verificar o status inicial. Verifique a conexão do Back-end.';
+                console.error('Falha na verificação de acesso:', error);
             }
         }
-        window.onload = checkAdminPermission;
+        window.onload = checkAccess;
 
 
-        document.getElementById('form-cadastro-usuario').addEventListener('submit', async function(e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
             const msg = document.getElementById('msg-feedback');
             const submitBtn = document.querySelector('.btn-submit');
@@ -125,11 +178,10 @@
                 email: document.getElementById('email').value,
                 senha: document.getElementById('senha').value,
                 cargo: document.getElementById('cargo').value,
-                permissao: document.getElementById('permissao').value
+                permissao: document.getElementById('permissao').value 
             };
 
             try {
-                // Usa a mesma rota unificada de cadastro
                 const response = await fetch(`${API_BASE_URL}/api/cadastro`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -140,8 +192,12 @@
 
                 if (response.ok) {
                     msg.className = 'success';
-                    msg.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message}`;
-                    e.target.reset(); 
+                    msg.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message} Agora você pode fazer login.`;
+                    form.reset(); 
+                    
+                    // Redireciona para o login após 3s
+                    setTimeout(() => { window.location.href = 'login.html'; }, 3000);
+                    
                 } else {
                     msg.className = 'error';
                     msg.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${data.message || 'Falha ao cadastrar usuário.'}`;
