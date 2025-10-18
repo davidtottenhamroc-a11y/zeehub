@@ -52,14 +52,6 @@
 
             <div class="menu-grid">
                 
-                <a href="registro_ponto.html" class="menu-card">
-                    <div class="card-icon"><i class="fas fa-clock"></i></div>
-                    <div>
-                        <h2 class="card-title">Meu Registro de Ponto</h2>
-                        <p class="card-description">Marque seu Check-in, Pausas e Check-out.</p>
-                    </div>
-                </a>
-                
                 <!-- Visível para ADMIN e GESTOR -->
                 <a href="relatorio.html" class="menu-card hidden-by-permission" id="card-relatorio-ponto">
                     <div class="card-icon"><i class="fas fa-chart-line"></i></div>
@@ -69,7 +61,7 @@
                     </div>
                 </a>
                 
-                <!-- Visível para ADMIN e GESTOR (CORREÇÃO AQUI) -->
+                <!-- Visível para ADMIN -->
                 <a href="ponto.html" class="menu-card hidden-by-permission" id="card-ponto-admin">
                     <div class="card-icon"><i class="fas fa-user-shield"></i></div>
                     <div>
@@ -130,17 +122,18 @@
                 cardCadastroPonto.classList.remove('hidden-by-permission');
                 
             } else if (userPermissao === 'gestor') {
-                 // Gestor vê: Relatório e Registro de Ponto (Admin)
+                 // Gestor vê APENAS: Relatório
                  cardRelatorio.classList.remove('hidden-by-permission');
-                 cardPontoAdmin.classList.remove('hidden-by-permission'); // <--- CORREÇÃO AQUI
-                 
+                 // **CORREÇÃO**: Gestor PODE ver o Ponto Admin para marcar para outros.
+                
                  // Garante que o gestor NÃO veja as ferramentas de cadastro de usuários
                  cardCadastroUsuario.classList.add('hidden-by-permission');
                  cardCadastroPonto.classList.add('hidden-by-permission');
+                 cardPontoAdmin.classList.add('hidden-by-permission'); 
                  
             } else {
                 // Funcionário e outros (permissao 'funcionario' e 'ponto')
-                // Vê APENAS o Meu Registro de Ponto. Garante que o Relatório esteja escondido.
+                // Vê APENAS o Meu Registro de Ponto. Garante que os cartões de Admin/Gestor estejam escondidos.
                 cardRelatorio.classList.add('hidden-by-permission');
                 cardPontoAdmin.classList.add('hidden-by-permission');
                 cardCadastroUsuario.classList.add('hidden-by-permission');
