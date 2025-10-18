@@ -9,21 +9,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// A string de conexão DEVE ser configurada APENAS como variável de ambiente (MONGO_URI) no Vercel.
 const MONGODB_URI = process.env.MONGO_URI || "mongodb+srv://davidtottenhamroc_db_user:david0724@cluster0.q29vt6z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; 
 
 // --- Schemas do Sistema de Ponto da Zee Imobiliária ---
 
 const funcionarioSchema = new mongoose.Schema({
     nome: { type: String, required: true },
-    // Email: Único se não for nulo (sparse), permitindo identificação de ponto.
     email: { type: String, unique: true, sparse: true }, 
     senha: { type: String }, 
     cargo: { type: String, required: true },
     isUser: { type: Boolean, default: false }, 
     permissao: { 
         type: String, 
-        enum: ['ponto', 'funcionario', 'gestor', 'admin'], // Adicionado 'gestor'
+        enum: ['ponto', 'funcionario', 'gestor', 'admin'], 
         default: 'ponto' 
     },
     createdAt: { type: Date, default: Date.now },
@@ -90,9 +88,7 @@ app.get('/', (req, res) => {
 // Rota para verificar se existe um Administrador (Usada pelo Front-end para desbloquear o cadastro)
 app.get('/api/admin/check-initial', async (req, res) => {
     try {
-        // Conta quantos usuários de login têm permissão 'admin'
         const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
-        // hasAdmin: true se já houver admins, false se for a primeira vez
         res.json({ hasAdmin: adminCount > 0 });
     } catch (error) {
         console.error('Erro ao verificar admins:', error);
@@ -132,44 +128,109 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 
-// Rota UNIFICADA de Cadastro (Funcionário Ponto OU Usuário com Acesso)
+// Rota UNIFICADA de Cadastro (Funcionario Ponto OU Usuário com Acesso)
 app.post('/api/cadastro', async (req, res) => {
     const { nome, email, senha, cargo, permissao } = req.body;
     
-    // O E-mail e Senha estão presentes APENAS se for um usuário com acesso (Login)
-    const isUser = !!email && !!senha; 
-    let finalPermissao = isUser ? (permissao || 'funcionario') : 'ponto'; 
+    // Indica que estamos tentando criar um usuário com login
+    const isUserRequest = !!email && !!senha; 
+    let finalPermissao = isUserRequest ? (permissao || 'funcionario') : 'ponto'; 
 
     try {
-        // LÓGICA DE PROTEÇÃO INICIAL: Força o primeiro usuário a ser ADMIN
-        if (isUser) {
-            const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
-            if (adminCount === 0) {
-                 finalPermissao = 'admin'; 
-                 console.log(`Primeiro usuário cadastrado: Forçando permissão para ${finalPermissao}.`);
-            }
-        }
+        let funcionarioExistente = null;
         
-        const novoFuncionario = new Funcionario({
-            nome,
-            // Captura o email mesmo para o tipo 'ponto' (sem login)
-            email: email, 
-            senha: isUser ? senha : undefined,
-            cargo,
-            isUser,
-            permissao: finalPermissao
-        });
-
-        await novoFuncionario.save();
-        res.status(201).json({ 
-            message: `${isUser ? 'Usuário' : 'Funcionário Ponto'} cadastrado com sucesso!`, 
-            id: novoFuncionario._id 
-        });
-    } catch (error) {
-        if (error.code === 11000) { 
-            return res.status(400).json({ message: 'O email já está em uso.' });
+        // 1. Lógica de Vinculação: Verifica se o e-mail já está cadastrado
+        if (email) {
+            funcionarioExistente = await Funcionario.findOne({ email });
         }
-        res.status(400).json({ message: 'Erro ao cadastrar.', details: error.message });
+
+        // --- Se o registro for para um USUÁRIO COM ACESSO (Login) ---
+        if (isUserRequest) {
+            
+            // 2. Verifica cenário de DUPLICIDADE/VINCULAÇÃO
+            if (funcionarioExistente) {
+                // Se o funcionário JÁ é um usuário com login, retorna erro de duplicidade
+                if (funcionarioExistente.isUser) {
+                     return res.status(400).json({ message: 'O e-mail já está em uso por outro usuário com acesso. Não é possível vincular.' });
+                }
+                
+                // Se o funcionário NÃO é um usuário com login (isUser: false), FAZ A VINCULAÇÃO/ATUALIZAÇÃO.
+                // Hash da nova senha
+                const salt = await bcrypt.genSalt(10);
+                const hashedPassword = await bcrypt.hash(senha, salt);
+                
+                // Lógica de Admin Inicial (força Admin se for o primeiro)
+                const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
+                if (adminCount === 0) {
+                     finalPermissao = 'admin'; 
+                }
+
+                // Atualiza o documento existente
+                const atualizado = await Funcionario.findByIdAndUpdate(funcionarioExistente._id, {
+                    senha: hashedPassword,
+                    isUser: true,
+                    permissao: finalPermissao,
+                    nome: nome, // Atualiza nome caso tenha sido digitado de forma diferente
+                    cargo: cargo
+                }, { new: true });
+
+                return res.status(200).json({ 
+                    message: `Usuário '${email}' vinculado e atualizado com acesso '${finalPermissao}'!`, 
+                    id: atualizado._id 
+                });
+
+            } else {
+                // 3. SE O E-MAIL NÃO EXISTE: Cria um novo usuário com as credenciais.
+                
+                // Lógica de Admin Inicial (força Admin se for o primeiro)
+                const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
+                if (adminCount === 0) {
+                     finalPermissao = 'admin'; 
+                }
+                
+                const novoUsuario = new Funcionario({
+                    nome,
+                    email,
+                    senha, // O hook pre('save') fará o hash
+                    cargo,
+                    isUser: true,
+                    permissao: finalPermissao
+                });
+                
+                await novoUsuario.save();
+                return res.status(201).json({ 
+                    message: `Novo Usuário '${email}' cadastrado com sucesso!`, 
+                    id: novoUsuario._id 
+                });
+            }
+
+        } else {
+            // --- Se o registro for para um FUNCIONÁRIO SÓ PONTO (Sem Login) ---
+            
+            // 4. Se o e-mail já existir, retorna erro para evitar duplicidade de ponto.
+            if (funcionarioExistente) {
+                return res.status(400).json({ message: 'O e-mail já está em uso por um colaborador. Não é possível cadastrar duas vezes.' });
+            }
+
+            // Cria um novo funcionário só ponto
+            const novoPonto = new Funcionario({
+                nome,
+                email: email || undefined, // Salva o email se houver, mas sem senha/isUser
+                cargo,
+                isUser: false,
+                permissao: 'ponto'
+            });
+
+            await novoPonto.save();
+            return res.status(201).json({ 
+                message: `Funcionário '${nome}' cadastrado apenas para ponto.`, 
+                id: novoPonto._id 
+            });
+        }
+
+    } catch (error) {
+        console.error('Erro geral no cadastro:', error);
+        res.status(500).json({ message: 'Erro interno do servidor durante o cadastro.', details: error.message });
     }
 });
 
