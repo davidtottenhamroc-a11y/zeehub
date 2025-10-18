@@ -86,6 +86,14 @@
                         <p class="card-description">Cadastro de contratos imobiliários fechados</p>
                     </div>
                 </a>
+                <!-- Apenas para ADMIN  e gestor-->
+                <a href="relatorio_contratos.html" class="menu-card hidden-by-permission" id="card-relatorio-contrato">
+                    <div class="card-icon"><i class="fas fa-file-signature"></i></div>
+                    <div>
+                        <h2 class="card-title">Relatorio de Contratos Fechados</h2>
+                        <p class="card-description">Relatorios de contratos imobiliários fechados</p>
+                    </div>
+                </a>
 
                 <!-- Apenas para ADMIN -->
                 <a href="cadastro_funcionario.html" class="menu-card hidden-by-permission" id="card-cadastro-ponto">
@@ -116,6 +124,7 @@
 
             // Variáveis de referência para os cartões
             const cardRelatorio = document.getElementById('card-relatorio-ponto');
+            const cardRelatoriocontrato = document.getElementById('card-relatorio-contrato');
             const cardPontoAdmin = document.getElementById('card-ponto-admin');
             const cardCadastroUsuario = document.getElementById('card-cadastro-usuario');
             const cardCadastrocontrato = document.getElementById('card-cadastro-contrato');
@@ -130,10 +139,12 @@
                 cardCadastroUsuario.classList.remove('hidden-by-permission');
                 cardCadastroPonto.classList.remove('hidden-by-permission');
                 cardCadastrocontrato.classList.remove('hidden-by-permission');
+                cardRelatoriocontrato.classList.remove('hidden-by-permission');
                 
             } else if (userPermissao === 'gestor') {
                  // Gestor vê APENAS: Relatório
                  cardRelatorio.classList.remove('hidden-by-permission');
+                 cardRelatoriocontrato.classList.remove('hidden-by-permission');
                  // **CORREÇÃO**: Gestor PODE ver o Ponto Admin para marcar para outros.
                 
                  // Garante que o gestor NÃO veja as ferramentas de cadastro de usuários
@@ -160,6 +171,7 @@
     </script>
 </body>
 </html>
+
 
 
 
