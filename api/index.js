@@ -9,20 +9,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// A Vercel injetará esta variável de ambiente (MONGO_URI)
 const MONGODB_URI = process.env.MONGO_URI || "mongodb+srv://davidtottenhamroc_db_user:david0724@cluster0.q29vt6z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; 
 
 // --- Schemas do Sistema de Ponto da Zee Imobiliária ---
 
 const funcionarioSchema = new mongoose.Schema({
     nome: { type: String, required: true },
+    // E-mail é único (sparse: true permite múltiplos nulos, mas mantém a unicidade)
     email: { type: String, unique: true, sparse: true }, 
     senha: { type: String }, 
     cargo: { type: String, required: true },
     isUser: { type: Boolean, default: false }, 
     permissao: { 
         type: String, 
-        enum: ['ponto', 'funcionario', 'admin'], 
+        // ADICIONADO 'gestor'
+        enum: ['ponto', 'funcionario', 'admin', 'gestor'], 
         default: 'ponto' 
     },
     createdAt: { type: Date, default: Date.now },
@@ -61,20 +62,17 @@ const pontoSchema = new mongoose.Schema({
 const Ponto = mongoose.models.Ponto || mongoose.model('Ponto', pontoSchema);
 
 
-// --- FUNÇÃO DE CONEXÃO E INICIALIZAÇÃO DO MONGODB ---
-
-// Na Vercel, a conexão do Mongoose deve ocorrer antes do tratamento das rotas.
-// Adicionamos um controle de erro mais robusto para garantir a conexão antes de qualquer query.
+// --- FUNÇÃO DE CONEXÃO ---
 
 if (!MONGODB_URI) {
-    console.error('ERRO: Variável MONGO_URI não definida. Verifique as Environment Variables na Vercel.');
-} else if (mongoose.connection.readyState === 0) { // Se não estiver conectado
+    console.error('ERRO: Variável MONGO_URI não definida.');
+} else {
     mongoose.connect(MONGODB_URI)
         .then(() => {
             console.log('Conexão estabelecida com MongoDB Atlas!');
         })
         .catch(err => {
-            console.error('Erro FATAL de conexão com o MongoDB. Verifique a string e o Network Access:', err.message);
+            console.error('Erro FATAL de conexão com o MongoDB:', err.message);
         });
 }
 
@@ -92,13 +90,6 @@ app.get('/', (req, res) => {
 // Rota para verificar se existe um Administrador (Usada pelo Front-end para desbloquear o cadastro)
 app.get('/api/admin/check-initial', async (req, res) => {
     try {
-        // Controle para garantir que a conexão Mongoose está ativa no ambiente serverless
-        if (mongoose.connection.readyState !== 1) {
-             console.error('Tentativa de acesso à API com conexão MongoDB inativa.');
-             // Retorna 503 (Service Unavailable) se o banco estiver fora
-             return res.status(503).json({ message: 'Serviço indisponível. Conexão com o banco de dados falhou.' });
-        }
-        
         const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
         res.json({ hasAdmin: adminCount > 0 });
     } catch (error) {
@@ -111,7 +102,6 @@ app.get('/api/admin/check-initial', async (req, res) => {
 // Rota para autenticação (Login)
 app.post('/api/auth/login', async (req, res) => {
     try {
-        // ... (o código da rota de login permanece o mesmo)
         const { email, senha } = req.body;
         
         const funcionario = await Funcionario.findOne({ email, isUser: true });
@@ -140,26 +130,28 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 
-// Rota UNIFICADA de Cadastro (Funcionario Ponto OU Usuário com Acesso)
+// Rota UNIFICADA de Cadastro (Funcionário Ponto OU Usuário com Acesso)
 app.post('/api/cadastro', async (req, res) => {
-    // ... (o código da rota de cadastro permanece o mesmo)
     const { nome, email, senha, cargo, permissao } = req.body;
     
+    // isUser é true APENAS se houver email E senha (login)
     const isUser = !!email && !!senha; 
-    let finalPermissao = isUser ? (permissao || 'funcionario') : 'ponto'; 
+    let finalPermissao = isUser ? (permissao || 'funcionario') : 'ponto';
 
     try {
+        // LÓGICA DE PROTEÇÃO INICIAL: Força o primeiro usuário com login a ser ADMIN
         if (isUser) {
             const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
             if (adminCount === 0) {
-                finalPermissao = 'admin'; 
-                console.log(`Primeiro usuário cadastrado: Forçando permissão para ${finalPermissao}.`);
+                 finalPermissao = 'admin'; 
+                 console.log(`Primeiro usuário cadastrado: Forçando permissão para ${finalPermissao}.`);
             }
         }
         
         const novoFuncionario = new Funcionario({
             nome,
-            email: isUser ? email : undefined,
+            // CORREÇÃO: Salva o email para TODOS (isUser ou não) para fins de ponto
+            email: email, 
             senha: isUser ? senha : undefined,
             cargo,
             isUser,
@@ -180,7 +172,7 @@ app.post('/api/cadastro', async (req, res) => {
 });
 
 
-// Rota para buscar TODOS os funcionários (para filtro de relatórios)
+// Rota para buscar TODOS os funcionários (para filtro de relatórios e ponto admin)
 app.get('/api/funcionarios-ponto', async (req, res) => {
     try {
         const funcionarios = await Funcionario.find({}, '_id nome cargo isUser').sort({ nome: 1 });
@@ -193,7 +185,6 @@ app.get('/api/funcionarios-ponto', async (req, res) => {
 
 // Rota para Registro de Ponto
 app.post('/api/ponto', async (req, res) => {
-    // ... (o código da rota de ponto permanece o mesmo)
     const { funcionario, tipo, observacao } = req.body;
     
     if (!funcionario || !tipo) {
@@ -212,7 +203,6 @@ app.post('/api/ponto', async (req, res) => {
 
 // Rota para buscar Relatório de Pontos
 app.get('/api/relatorio/:funcionarioId', async (req, res) => {
-    // ... (o código da rota de relatório permanece o mesmo)
     const { funcionarioId } = req.params;
 
     try {
@@ -229,12 +219,4 @@ app.get('/api/relatorio/:funcionarioId', async (req, res) => {
 });
 
 
-// ------------------------------------
-// --- Exporta o App para a Vercel ---
-// ------------------------------------
-// ESTE É O PASSO CHAVE: A Vercel usará este módulo exportado para criar a função Serverless.
-// O BLOCO app.listen() FOI REMOVIDO.
 module.exports = app;
-
-
-
