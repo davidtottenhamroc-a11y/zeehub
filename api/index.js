@@ -3,12 +3,18 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs'); 
 
+// Adicione esta linha se estiver usando um arquivo .env localmente
+// require('dotenv').config(); 
+
 const app = express();
+// Define a porta onde a API vai rodar
+const PORT = process.env.PORT || 3000; 
 
 // --- Configurações Iniciais ---
 app.use(cors());
 app.use(express.json());
 
+// É crucial que esta variável seja lida corretamente do ambiente de execução
 const MONGODB_URI = process.env.MONGO_URI; 
 
 // --- Schemas do Sistema de Ponto da Zee Imobiliária ---
@@ -60,10 +66,10 @@ const pontoSchema = new mongoose.Schema({
 const Ponto = mongoose.models.Ponto || mongoose.model('Ponto', pontoSchema);
 
 
-// --- FUNÇÃO DE CONEXÃO E INICIALIZAÇÃO ---
+// --- FUNÇÃO DE CONEXÃO E INICIALIZAÇÃO DO MONGODB ---
 
 if (!MONGODB_URI) {
-    console.error('ERRO: Variável MONGO_URI não definida.');
+    console.error('ERRO: Variável MONGO_URI não definida. Verifique seu arquivo .env ou variáveis de ambiente.');
 } else {
     mongoose.connect(MONGODB_URI)
         .then(() => {
@@ -88,6 +94,12 @@ app.get('/', (req, res) => {
 // Rota para verificar se existe um Administrador (Usada pelo Front-end para desbloquear o cadastro)
 app.get('/api/admin/check-initial', async (req, res) => {
     try {
+        // Verifica o estado de conexão do Mongoose
+        if (mongoose.connection.readyState !== 1) {
+             // Se não estiver conectado, retorna erro 503 para indicar que o serviço não está disponível
+             return res.status(503).json({ message: 'Serviço indisponível. Conexão com o banco de dados falhou.' });
+        }
+        
         // Conta quantos usuários de login têm permissão 'admin'
         const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
         // hasAdmin: true se já houver admins, false se for a primeira vez
@@ -142,9 +154,9 @@ app.post('/api/cadastro', async (req, res) => {
         if (isUser) {
             const adminCount = await Funcionario.countDocuments({ isUser: true, permissao: 'admin' });
             if (adminCount === 0) {
-                 // Se não houver ADMINS, o PRIMEIRO USUÁRIO CADASTRADO É O ADMIN
-                 finalPermissao = 'admin'; 
-                 console.log(`Primeiro usuário cadastrado: Forçando permissão para ${finalPermissao}.`);
+                // Se não houver ADMINS, o PRIMEIRO USUÁRIO CADASTRADO É O ADMIN
+                finalPermissao = 'admin'; 
+                console.log(`Primeiro usuário cadastrado: Forçando permissão para ${finalPermissao}.`);
             }
         }
         
@@ -218,4 +230,15 @@ app.get('/api/relatorio/:funcionarioId', async (req, res) => {
 });
 
 
+// ------------------------------------
+// --- INICIALIZAÇÃO DO SERVIDOR ---
+// ------------------------------------
+// Este bloco faltava e é CRUCIAL para que sua API atenda às requisições.
+app.listen(PORT, () => {
+    console.log(`\n--- Servidor Express Iniciado ---`);
+    console.log(`API rodando em: http://localhost:${PORT}`);
+    console.log(`----------------------------------\n`);
+});
+
+// Mantemos o export caso você use este arquivo como módulo
 module.exports = app;
