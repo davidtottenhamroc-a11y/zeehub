@@ -79,6 +79,12 @@ if (!MONGODB_URI) {
 // --- Rotas da API Zee Imobiliária ---
 // ------------------------------------
 
+// Rota de Teste
+app.get('/', (req, res) => {
+    res.status(200).send('API de Gestão de Tempo da Zee Imobiliária Rodando.');
+});
+
+
 // Rota para verificar se existe um Administrador (Usada pelo Front-end para desbloquear o cadastro)
 app.get('/api/admin/check-initial', async (req, res) => {
     try {
