@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zee Imobiliária - Menu</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Estilos base do seu modelo, adaptados para vermelho/branco */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #F0F0F0; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 1200px; width: 100%; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); overflow: hidden; margin-bottom: 30px; }
+        
+        header { background: #E62B4E; color: white; padding: 20px; text-align: center; } /* Vermelho principal */
+        .header-content { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+        .logo-header { height: 50px; width: auto; margin-right: 15px; }
+        h1 { font-size: 28px; margin-bottom: 5px; }
+        .description { font-size: 16px; opacity: 0.9; }
+        main { padding: 20px; }
+        .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .menu-card { 
+            background: #fdfdfd; border: 1px solid #eee; border-radius: 10px; padding: 25px; 
+            transition: all 0.3s ease; text-decoration: none; color: #333; 
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center; 
+            text-align: center;
+        }
+        .menu-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); border-color: #E62B4E; }
+        .card-icon { font-size: 50px; color: #E62B4E; margin-bottom: 15px; } /* Ícones em vermelho */
+        .card-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+        .card-description { font-size: 14px; color: #6c757d; }
+        
+        .logout { margin-top: 30px; text-align: right; }
+        .btn-logout { background: #333; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; transition: background 0.3s; }
+        .btn-logout:hover { background: #555; }
+
+        .welcome-message {
+            text-align: center;
+            font-size: 1.1em;
+            color: #333;
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+
+        /* Esconder cards para usuários não-admin */
+        .admin-only {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <img src="img/logo.png" alt="Zee Imobiliária Logo" class="logo-header">
+                <h1>Zee Imobiliária - Menu Principal</h1>
+            </div>
+            <p class="description">Bem-vindo(a) ao Sistema de Gestão de Tempo.</p>
+        </header>
+
+        <main>
+            <p class="welcome-message" id="welcome-message">Olá, <span id="user-name">Usuário</span>!</p>
+
+            <div class="menu-grid">
+                
+                <a href="registro_ponto.html" class="menu-card">
+                    <div class="card-icon"><i class="fas fa-clock"></i></div>
+                    <div>
+                        <h2 class="card-title">Registro de Ponto</h2>
+                        <p class="card-description">Marque seu Check-in, Pausas e Check-out.</p>
+                    </div>
+                </a>
+                
+                <a href="cadastro_funcionario.html" class="menu-card admin-only" id="card-cadastro-funcionario">
+                    <div class="card-icon"><i class="fas fa-user-plus"></i></div>
+                    <div>
+                        <h2 class="card-title">Cadastro de Funcionário</h2>
+                        <p class="card-description">Gerencie os dados dos colaboradores e usuários.</p>
+                    </div>
+                </a>
+
+                <a href="relatorio_ponto.html" class="menu-card admin-only" id="card-relatorio-ponto">
+                    <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+                    <div>
+                        <h2 class="card-title">Relatório de Ponto</h2>
+                        <p class="card-description">Visualize e filtre os registros de horas dos funcionários.</p>
+                    </div>
+                </a>
+                
+            </div>
+            <div class="logout">
+                <button class="btn-logout" onclick="logout()">Sair <i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </main>
+    </div>
+    <script>
+        function checkLoginAndPermissions() {
+            const userId = localStorage.getItem('usuarioLogadoId');
+            const userName = localStorage.getItem('usuarioLogadoNome');
+            const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
+
+            if (!userId) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            document.getElementById('user-name').textContent = userName;
+
+            // Mostrar cards de admin apenas para admins
+            if (userPermissao === 'admin') {
+                document.querySelectorAll('.admin-only').forEach(card => {
+                    card.style.display = 'flex'; // Torna visível para admins
+                });
+            } else {
+                // Para não-admins, garante que os cards de admin estão escondidos
+                document.querySelectorAll('.admin-only').forEach(card => {
+                    card.style.display = 'none'; 
+                });
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('usuarioLogadoId');
+            localStorage.removeItem('usuarioLogadoNome');
+            localStorage.removeItem('usuarioLogadoPermissao');
+            window.location.href = 'login.html';
+        }
+        
+        window.onload = checkLoginAndPermissions;
+    </script>
+</body>
+</html>
