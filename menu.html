@@ -130,12 +130,18 @@
                 cardCadastroPonto.classList.remove('hidden-by-permission');
                 
             } else if (userPermissao === 'gestor') {
-                 // Gestor vê APENAS o Relatório
+                 // Gestor vê APENAS o Relatório e o Ponto Pessoal
                  cardRelatorio.classList.remove('hidden-by-permission');
+                 // Garante que o Gestor NÃO veja os cadastros e admin point
+                 cardPontoAdmin.classList.add('hidden-by-permission');
+                 cardCadastroUsuario.classList.add('hidden-by-permission');
+                 cardCadastroPonto.classList.add('hidden-by-permission');
                  
-            } 
-            // Funcionário (permissao === 'funcionario') não precisa de lógica extra, 
-            // pois só vê o card de Registro de Ponto, que é o único que não tem a classe 'hidden-by-permission' por padrão.
+            } else {
+                // Funcionário e outros (incluindo 'ponto')
+                // Vê APENAS o Meu Registro de Ponto. Garante que o Relatório esteja escondido.
+                cardRelatorio.classList.add('hidden-by-permission');
+            }
         }
 
         function logout() {
