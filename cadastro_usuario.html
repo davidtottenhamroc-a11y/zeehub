@@ -56,7 +56,7 @@
                 <img src="img/logo.png" alt="Zee Imobiliária Logo" class="logo-header">
                 <h1>Cadastro de Usuário com Acesso</h1>
             </div>
-            <p class="description">Crie contas para administradores e gerentes que farão login no sistema.</p>
+            <p class="description">Crie contas para administradores, gestores e funcionários que farão login no sistema.</p>
         </header>
 
         <main id="main-content">
@@ -99,9 +99,10 @@
                 <div class="input-group" id="permissao-group">
                     <label for="permissao">Nível de Acesso ao Sistema</label>
                     <select id="permissao" required>
-                        <option value="funcionario">Funcionário (Acesso Básico ao Menu)</option>
-                        <option value="gestor">Gestor (Acesso apenas a Relatórios)</option>
-                        <option value="admin">Admin (Acesso Total)</option>
+                        <!-- Adicionado 'funcionario' que agora tem login mas não tem relatórios -->
+                        <option value="funcionario">Funcionário (Acesso apenas ao Ponto Pessoal)</option>
+                        <option value="gestor">Gestor (Acesso a Ponto Pessoal e Relatórios)</option>
+                        <option value="admin">Admin (Acesso Total: Cadastros, Ponto Admin e Relatórios)</option>
                     </select>
                 </div>
                 
@@ -127,7 +128,6 @@
             const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
 
             try {
-                // 1. Chama a rota de verificação do Back-end para saber se há admins
                 const response = await fetch(`${API_BASE_URL}/api/admin/check-initial`);
                 const data = await response.json();
                 
@@ -136,28 +136,27 @@
                 const hasAdmin = data.hasAdmin;
 
                 if (!hasAdmin) {
-                    // 2. CASO INICIAL: SEM ADMINS NO BANCO -> PERMITE ACESSO TOTAL
+                    // CASO INICIAL: SEM ADMINS NO BANCO -> PERMITE ACESSO TOTAL para cadastrar o primeiro Admin
                     form.classList.remove('hidden');
                     adminWarning.classList.remove('hidden');
                     permissaoGroup.classList.add('hidden'); // Oculta, pois será Admin por padrão
                     backToMenu.classList.remove('hidden');
                     
                 } else if (hasAdmin && userPermissao === 'admin') {
-                    // 3. CASO NORMAL: LOGADO COMO ADMIN -> PERMITE ACESSO NORMAL
+                    // CASO NORMAL: LOGADO COMO ADMIN -> PERMITE ACESSO NORMAL (pode escolher a permissão)
                     form.classList.remove('hidden');
                     permissaoGroup.classList.remove('hidden');
                     backToMenu.classList.remove('hidden');
 
                 } else {
-                    // 4. BLOQUEIO: JÁ TEM ADMINS E NÃO ESTÁ LOGADO OU NÃO É ADMIN
+                    // BLOQUEIO: JÁ TEM ADMINS E NÃO ESTÁ LOGADO OU NÃO É ADMIN
                     denied.classList.remove('hidden');
                 }
 
             } catch (error) {
-                // Se a API falhar (ex: erro de conexão do MongoDB), informa o erro de conexão.
                 denied.classList.remove('hidden');
                 denied.querySelector('p').textContent = 'Erro ao conectar com o servidor para verificar o status inicial. Verifique a conexão do Back-end.';
-                loading.innerHTML = ''; // Limpa o loading
+                loading.innerHTML = ''; 
                 console.error('Falha na verificação de acesso:', error);
             }
         }
@@ -174,12 +173,15 @@
             msg.style.display = 'block';
             submitBtn.disabled = true;
 
+            // Pega a permissão, mas o Back-end irá sobrescrever para 'admin' se for o primeiro
+            const permissaoFinal = document.getElementById('permissao').value; 
+
             const dados = {
                 nome: document.getElementById('nome').value,
                 email: document.getElementById('email').value,
                 senha: document.getElementById('senha').value,
                 cargo: document.getElementById('cargo').value,
-                permissao: document.getElementById('permissao').value 
+                permissao: permissaoFinal
             };
 
             try {
@@ -196,7 +198,6 @@
                     msg.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message} Agora você pode fazer login.`;
                     form.reset(); 
                     
-                    // Redireciona para o login após 3s
                     setTimeout(() => { window.location.href = 'login.html'; }, 3000);
                     
                 } else {
