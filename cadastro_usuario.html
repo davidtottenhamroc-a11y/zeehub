@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zee Imobiliária - Cadastro de Usuário</title>
+    <title>Zee Imobiliária - Cadastro de Funcionário Ponto</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Estilos base (vermelho/branco) */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: #F0F0F0; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { max-width: 800px; width: 100%; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); overflow: hidden; margin-bottom: 30px; }
+        .container { max-width: 600px; width: 100%; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); overflow: hidden; margin-bottom: 30px; }
         
         header { background: #E62B4E; color: white; padding: 20px; text-align: center; }
         .header-content { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
         .logo-header { height: 40px; width: auto; margin-right: 15px; }
-        h1 { font-size: 28px; margin-bottom: 5px; }
+        h1 { font-size: 24px; margin-bottom: 5px; }
         .description { font-size: 16px; opacity: 0.9; }
         main { padding: 40px 20px; }
 
@@ -22,11 +22,11 @@
         form { background: #fdfdfd; padding: 30px; border-radius: 10px; border: 1px solid #eee; }
         .input-group { margin-bottom: 20px; }
         .input-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
-        .input-group input, .input-group select { 
+        .input-group input { 
             width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; 
             transition: border-color 0.3s; font-size: 16px;
         }
-        .input-group input:focus, .input-group select:focus { border-color: #E62B4E; outline: none; box-shadow: 0 0 5px rgba(230, 43, 78, 0.5); }
+        .input-group input:focus { border-color: #E62B4E; outline: none; box-shadow: 0 0 5px rgba(230, 43, 78, 0.5); }
         
         .btn-submit { 
             width: 100%; padding: 15px; background: #E62B4E; color: white; border: none; 
@@ -39,14 +39,12 @@
             margin-top: 20px; padding: 15px; border-radius: 5px; font-weight: bold; 
             text-align: center; display: none;
         }
-        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; } 
         .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6fb; } 
         .loading { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; } 
         
         .btn-back { display: block; margin-top: 20px; text-align: center; text-decoration: none; color: #E62B4E; font-weight: bold; }
         .btn-back:hover { text-decoration: underline; }
-
-        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -54,27 +52,13 @@
         <header>
             <div class="header-content">
                 <img src="img/logo.png" alt="Zee Imobiliária Logo" class="logo-header">
-                <h1>Cadastro de Usuário com Acesso</h1>
+                <h1>Cadastro de Funcionário (Apenas Ponto)</h1>
             </div>
-            <p class="description">Crie contas para administradores, gestores e funcionários que farão login no sistema.</p>
+            <p class="description">Adicione novos colaboradores que apenas registrarão o ponto (sem acesso ao sistema).</p>
         </header>
 
-        <main id="main-content">
-            <div id="loading-check" style="text-align: center; padding: 50px;">
-                <i class="fas fa-spinner fa-spin fa-2x" style="color: #E62B4E;"></i> 
-                <p style="margin-top: 15px;">Verificando status do sistema...</p>
-            </div>
-
-            <div id="access-denied" class="hidden" style="text-align: center; padding: 50px; color: #E62B4E;">
-                <h2>Acesso Restrito</h2>
-                <p style="margin-top: 10px;">Esta página é exclusiva para Administradores. Por favor, faça login para continuar.</p>
-                <a href="login.html" class="btn-back"><i class="fas fa-sign-in-alt"></i> Ir para Login</a>
-            </div>
-
-            <form id="form-cadastro-usuario" class="hidden">
-                <div id="admin-warning" class="hidden error" style="margin-bottom: 20px; padding: 10px;">
-                    <i class="fas fa-exclamation-triangle"></i> ATENÇÃO: Você está cadastrando o **primeiro** Administrador do sistema. Esta ação é irreversível.
-                </div>
+        <main>
+            <form id="form-cadastro-ponto">
                 
                 <div class="input-group">
                     <label for="nome">Nome Completo</label>
@@ -82,106 +66,47 @@
                 </div>
 
                 <div class="input-group">
-                    <label for="email">E-mail (Login)</label>
-                    <input type="email" id="email" required>
-                </div>
-
-                <div class="input-group">
-                    <label for="senha">Senha Inicial</label>
-                    <input type="password" id="senha" required>
-                </div>
-
-                <div class="input-group">
                     <label for="cargo">Cargo na Zee</label>
                     <input type="text" id="cargo" required>
                 </div>
-
-                <div class="input-group" id="permissao-group">
-                    <label for="permissao">Nível de Acesso ao Sistema</label>
-                    <select id="permissao" required>
-                        <!-- Adicionado 'funcionario' que agora tem login mas não tem relatórios -->
-                        <option value="funcionario">Funcionário (Acesso apenas ao Ponto Pessoal)</option>
-                        <option value="gestor">Gestor (Acesso a Ponto Pessoal e Relatórios)</option>
-                        <option value="admin">Admin (Acesso Total: Cadastros, Ponto Admin e Relatórios)</option>
-                    </select>
-                </div>
                 
                 <button type="submit" class="btn-submit">
-                    <i class="fas fa-lock"></i> CADASTRAR USUÁRIO ACESSO
+                    <i class="fas fa-user-tag"></i> CADASTRAR FUNCIONÁRIO PONTO
                 </button>
             </form>
             
             <div id="msg-feedback"></div>
-            <a href="menu.html" class="btn-back hidden" id="back-to-menu"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
+            <a href="menu.html" class="btn-back"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
         </main>
     </div>
     <script>
         const API_BASE_URL = window.location.origin;
-        const form = document.getElementById('form-cadastro-usuario');
-        const denied = document.getElementById('access-denied');
-        const loading = document.getElementById('loading-check');
-        const adminWarning = document.getElementById('admin-warning');
-        const backToMenu = document.getElementById('back-to-menu');
-        const permissaoGroup = document.getElementById('permissao-group');
 
-        async function checkAccess() {
+        function checkAdminPermission() {
             const userPermissao = localStorage.getItem('usuarioLogadoPermissao');
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/check-initial`);
-                const data = await response.json();
-                
-                loading.classList.add('hidden');
-
-                const hasAdmin = data.hasAdmin;
-
-                if (!hasAdmin) {
-                    // CASO INICIAL: SEM ADMINS NO BANCO -> PERMITE ACESSO TOTAL para cadastrar o primeiro Admin
-                    form.classList.remove('hidden');
-                    adminWarning.classList.remove('hidden');
-                    permissaoGroup.classList.add('hidden'); // Oculta, pois será Admin por padrão
-                    backToMenu.classList.remove('hidden');
-                    
-                } else if (hasAdmin && userPermissao === 'admin') {
-                    // CASO NORMAL: LOGADO COMO ADMIN -> PERMITE ACESSO NORMAL (pode escolher a permissão)
-                    form.classList.remove('hidden');
-                    permissaoGroup.classList.remove('hidden');
-                    backToMenu.classList.remove('hidden');
-
-                } else {
-                    // BLOQUEIO: JÁ TEM ADMINS E NÃO ESTÁ LOGADO OU NÃO É ADMIN
-                    denied.classList.remove('hidden');
-                }
-
-            } catch (error) {
-                denied.classList.remove('hidden');
-                denied.querySelector('p').textContent = 'Erro ao conectar com o servidor para verificar o status inicial. Verifique a conexão do Back-end.';
-                loading.innerHTML = ''; 
-                console.error('Falha na verificação de acesso:', error);
+            // Permite que apenas Admins acessem esta tela
+            if (userPermissao !== 'admin') {
+                // Se não for admin, redireciona para o menu.
+                window.location.href = 'menu.html'; 
             }
         }
-        window.onload = checkAccess;
+        window.onload = checkAdminPermission;
 
 
-        form.addEventListener('submit', async function(e) {
+        document.getElementById('form-cadastro-ponto').addEventListener('submit', async function(e) {
             e.preventDefault();
             const msg = document.getElementById('msg-feedback');
             const submitBtn = document.querySelector('.btn-submit');
             
             msg.className = 'loading';
-            msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguarde, cadastrando usuário...';
+            msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguarde, cadastrando funcionário...';
             msg.style.display = 'block';
             submitBtn.disabled = true;
 
-            // Pega a permissão, mas o Back-end irá sobrescrever para 'admin' se for o primeiro
-            const permissaoFinal = document.getElementById('permissao').value; 
-
             const dados = {
                 nome: document.getElementById('nome').value,
-                email: document.getElementById('email').value,
-                senha: document.getElementById('senha').value,
-                cargo: document.getElementById('cargo').value,
-                permissao: permissaoFinal
+                cargo: document.getElementById('cargo').value
+                // email, senha e isUser=false são omitidos, o backend assume 'ponto'
             };
 
             try {
@@ -195,14 +120,11 @@
 
                 if (response.ok) {
                     msg.className = 'success';
-                    msg.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message} Agora você pode fazer login.`;
-                    form.reset(); 
-                    
-                    setTimeout(() => { window.location.href = 'login.html'; }, 3000);
-                    
+                    msg.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message}`;
+                    e.target.reset(); 
                 } else {
                     msg.className = 'error';
-                    msg.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${data.message || 'Falha ao cadastrar usuário.'}`;
+                    msg.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${data.message || 'Falha ao cadastrar funcionário.'}`;
                 }
 
             } catch (error) {
